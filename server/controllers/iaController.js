@@ -64,6 +64,10 @@ exports.tutor = async (req, res) => {
       sistema: montarSistemaTutor(material),
       mensagens: [{ role: 'user', content: pergunta }],
     });
+    // Alguns provedores devolvem 200 sem texto (ex.: limite de tokens); avisa em vez de resposta vazia.
+    if (!r.texto || !r.texto.trim()) {
+      throw new IaErro('vazio', 'O assistente não conseguiu responder desta vez. Tente reformular a pergunta.', 502);
+    }
     await registrarUso({
       usuarioId, modulo: 'tutor', provedor: r.provedor, modelo: r.modelo,
       status: 'ok', tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida,

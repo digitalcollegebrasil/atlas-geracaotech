@@ -83,7 +83,12 @@ export default function TutorIa({ lesson }) {
     setPerguntaEnviada(texto);
     setPergunta('');
     try {
-      setResposta(await perguntarTutor({ pergunta: texto, aulaId: lesson.id }));
+      const resp = await perguntarTutor({ pergunta: texto, aulaId: lesson.id });
+      if (resp && resp.trim()) {
+        setResposta(resp);
+      } else {
+        setErro('O Atlas não conseguiu responder desta vez. Tente reformular a pergunta.');
+      }
     } catch (error) {
       setErro(errorText(error, 'O assistente não respondeu agora. Tente de novo.'));
     } finally {
