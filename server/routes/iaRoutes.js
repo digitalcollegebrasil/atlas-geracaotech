@@ -15,4 +15,7 @@ router.put('/estado', requireRole('admin'), asyncHandler(ia.definirEstado));
 // Tutor da aula: limite de 10 perguntas por minuto por IP, para conter custo.
 router.post('/tutor', rateLimit({ windowMs: 60_000, max: 10 }), asyncHandler(ia.tutor));
 
+// Teste da IA pelo painel. So administracao; mesmo limite de uso do tutor, para conter custo.
+router.post('/teste', requireRole('admin'), rateLimit({ windowMs: 60_000, max: 10 }), asyncHandler(ia.testar));
+
 module.exports = router;
