@@ -59,7 +59,79 @@
 
 /* Assistente de IA (tutor na aula e interruptor no painel) */
 .tutor-ia { margin-top: 1rem; }
-.tutor-ia textarea { width: 100%; margin: 0.25rem 0 0.5rem; }
+.tutor-ia textarea { width: 100%; margin: 0.25rem 0 0.5rem; border-radius: 12px; }
 .tutor-ia-acoes { display: flex; gap: 0.5rem; }
-.tutor-ia-resposta { margin-top: 0.75rem; white-space: pre-wrap; }
+
+/* Atlas: convite em cartão com o mascote animado */
+.tutor-ia-convite {
+  display: flex; align-items: center; gap: 1rem; width: 100%;
+  padding: 0.5rem 1.1rem 0.5rem 0.5rem; text-align: left; font: inherit; color: var(--text);
+  border: 1px solid var(--border); border-radius: 22px; cursor: pointer;
+  background: linear-gradient(135deg, var(--surface), var(--primary-soft));
+  box-shadow: var(--shadow-pop); transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.tutor-ia-convite:hover { transform: translateY(-2px); }
+.tutor-ia-convite:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.tutor-ia-mascote { width: 96px; height: auto; flex-shrink: 0; }
+.tutor-ia-mascote.pequeno { width: 56px; }
+.tutor-ia-texto { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.tutor-ia-texto strong { font-size: 1.15rem; color: var(--primary); }
+.tutor-ia-texto small { color: var(--text-muted); }
+.tutor-ia-chamada {
+  background: var(--primary); color: var(--primary-ink); border-radius: 999px;
+  padding: 0.55rem 1rem; font-weight: 600; white-space: nowrap;
+}
+
+/* Painel aberto: cabeçalho, conversa em balões */
+.tutor-ia.is-open {
+  display: grid; gap: 0.75rem; padding: 1rem; border: 1px solid var(--border);
+  border-radius: 22px; background: var(--surface); box-shadow: var(--shadow-pop);
+}
+.tutor-ia-cabecalho { display: flex; align-items: center; gap: 0.75rem; }
+.tutor-ia-fechar {
+  border: 0; background: transparent; color: var(--text-muted); font-size: 1.6rem;
+  line-height: 1; cursor: pointer; padding: 0 0.25rem;
+}
+.tutor-ia-balao-pergunta {
+  justify-self: end; max-width: 85%; padding: 0.6rem 0.9rem; line-height: 1.5;
+  background: var(--primary-soft); border-radius: 16px 16px 4px 16px;
+  animation: tutor-surgir 0.35s ease-out;
+}
+.tutor-ia-balao-resposta { display: flex; gap: 0.6rem; align-items: flex-start; animation: tutor-surgir 0.45s ease-out; }
+.tutor-ia-balao-resposta .tutor-ia-mascote { width: 56px; margin-top: 0.25rem; }
+.tutor-ia-resposta {
+  flex: 1; min-width: 0; padding: 0.8rem 1rem; line-height: 1.6;
+  background: var(--bg-muted); border-radius: 4px 16px 16px 16px;
+}
+.tutor-ia-resposta p { margin: 0 0 0.5rem; }
+.tutor-ia-resposta p:last-child, .tutor-ia-resposta ul:last-child { margin-bottom: 0; }
+.tutor-ia-resposta ul { margin: 0 0 0.5rem; padding-left: 1.2rem; }
+.tutor-ia-resposta li { margin: 0.15rem 0; }
+
+/* Indicador de digitação */
+.tutor-ia-digitando { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
+.tutor-ia-digitando span {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--primary);
+  animation: tutor-pulso 1s infinite ease-in-out;
+}
+.tutor-ia-digitando span:nth-child(2) { animation-delay: 0.15s; }
+.tutor-ia-digitando span:nth-child(3) { animation-delay: 0.3s; }
+.tutor-ia-digitando small { margin-left: 6px; }
+
+@keyframes tutor-pulso {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
+@keyframes tutor-surgir {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 600px) {
+  .tutor-ia-convite { flex-wrap: wrap; justify-content: center; text-align: center; }
+  .tutor-ia-chamada { width: 100%; text-align: center; }
+  .tutor-ia-mascote { width: 80px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutor-ia *, .tutor-ia { animation: none !important; transition: none !important; }
+}
 .ia-admin-card { max-width: 520px; display: grid; gap: 0.75rem; }
