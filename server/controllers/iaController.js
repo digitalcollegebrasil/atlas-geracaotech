@@ -30,6 +30,52 @@ exports.definirEstado = async (req, res) => {
   res.json(calcularEstado({ ligadaNoPainel: ligada }));
 };
 
+// POST /api/ia/teste  { pergunta }  (so administracao) -> { resposta, tokensEntrada, tokensSaida }
+// Teste do painel: so responde com a IA ligada e configurada. Nao grava o texto da pergunta
+// nem da resposta, so o registro de uso em ia_usos.
+exports.testar = async (req, res) => {
+  const estado = calcularEstado({ ligadaNoPainel: await ligadaNoPainel() });
+  if (!estado.ligada || !estado.configurada) {
+    return res.status(503).json({
+      message: estado.ligada ? estado.motivo || 'A IA não está configurada.' : 'A IA está desligada.',
+      ligada: estado.ligada,
+      configurada: estado.configurada,
+      motivo: estado.motivo,
+    });
+  }
+
+  const pergunta = req.body?.pergunta;
+  if (typeof pergunta !== 'string' || !pergunta.trim()) {
+    throw new IaErro('entrada', 'Escreva a pergunta de teste.', 400);
+  }
+  if (pergunta.length > MAX_PERGUNTA) {
+    throw new IaErro('entrada', `A pergunta pode ter até ${MAX_PERGUNTA} caracteres.`, 400);
+  }
+
+  const usuarioId = req.user && req.user.id;
+  try {
+    const r = await gerarResposta({
+      modulo: 'tutor',
+      sistema: 'Você está testando a IA do Geração Tech. Responda em português do Brasil, de forma curta e clara.',
+      mensagens: [{ role: 'user', content: pergunta }],
+    });
+    await registrarUso({
+      usuarioId, modulo: 'tutor', provedor: r.provedor, modelo: r.modelo,
+      status: 'ok', tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida,
+    }).catch(() => {});
+    return res.json({ resposta: r.texto, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida });
+  } catch (erro) {
+    const codigo = erro instanceof IaErro ? erro.codigo : 'erro';
+    if (codigo !== 'entrada') {
+      await registrarUso({
+        usuarioId, modulo: 'tutor', provedor: process.env.IA_PROVEDOR, modelo: process.env.IA_MODELO,
+        status: 'erro', codigoErro: codigo,
+      }).catch(() => {});
+    }
+    throw erro;
+  }
+};
+
 // POST /api/ia/tutor  { pergunta, aulaId }  -> { resposta }
 // O material da aula e lido no servidor pelo ID; o cliente nao envia texto.
 // O ID da aula e texto (lessons.id e text), entao nao e convertido para numero.

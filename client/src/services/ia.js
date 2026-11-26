@@ -12,6 +12,12 @@ export async function definirEstadoIa(ligada) {
   return data;
 }
 
+// Teste da IA pelo painel (somente administração). Devolve { resposta, tokensEntrada, tokensSaida }.
+export async function testarIa(pergunta) {
+  const { data } = await api.post('/ia/teste', { pergunta });
+  return data;
+}
+
 // Pergunta ao tutor. O servidor lê o material da aula pelo ID.
 export async function perguntarTutor({ pergunta, aulaId }) {
   const { data } = await api.post('/ia/tutor', { pergunta, aulaId });
