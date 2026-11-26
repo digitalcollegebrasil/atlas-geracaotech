@@ -66,6 +66,10 @@ exports.tutor = async (req, res) => {
     });
     // Alguns provedores devolvem 200 sem texto (ex.: limite de tokens); avisa em vez de resposta vazia.
     if (!r.texto || !r.texto.trim()) {
+      // Diagnóstico: tokensSaida no limite => corte por tamanho; zero => o provedor não gerou texto.
+      console.warn('[ia/tutor] resposta vazia', {
+        provedor: r.provedor, modelo: r.modelo, tokensEntrada: r.tokensEntrada, tokensSaida: r.tokensSaida,
+      });
       throw new IaErro('vazio', 'O assistente não conseguiu responder desta vez. Tente reformular a pergunta.', 502);
     }
     await registrarUso({
