@@ -5,6 +5,20 @@ const { registrarUso, lerLigada, salvarLigada, lerAula } = require('../db/iaRepo
 
 const MAX_PERGUNTA = 2000;
 const MAX_ID_AULA = 200;
+// Histórico da conversa com o tutor: só as últimas trocas, com tamanho limitado (é o cliente que envia).
+const MAX_MENSAGENS_HISTORICO = 12;
+const MAX_CARACTERES_HISTORICO = 2000;
+
+function historicoSeguro(entrada) {
+  if (!Array.isArray(entrada)) return [];
+  const limpo = entrada
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+    .slice(-MAX_MENSAGENS_HISTORICO)
+    .map((m) => ({ role: m.role, content: m.content.trim().slice(0, MAX_CARACTERES_HISTORICO) }));
+  // A conversa precisa começar com a fala do aluno.
+  while (limpo.length && limpo[0].role !== 'user') limpo.shift();
+  return limpo;
+}
 
 // Se o banco falhar, a IA aparece como desligada (o site continua funcionando).
 async function ligadaNoPainel() {
@@ -62,7 +76,7 @@ exports.tutor = async (req, res) => {
     const r = await gerarResposta({
       modulo: 'tutor',
       sistema: montarSistemaTutor(material),
-      mensagens: [{ role: 'user', content: pergunta }],
+      mensagens: [...historicoSeguro(req.body?.historico), { role: 'user', content: pergunta }],
     });
     // Alguns provedores devolvem 200 sem texto (ex.: limite de tokens); avisa em vez de resposta vazia.
     if (!r.texto || !r.texto.trim()) {

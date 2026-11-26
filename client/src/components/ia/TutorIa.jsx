@@ -1,17 +1,22 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { buscarEstadoIa, perguntarTutor } from '../../services/ia';
 import { errorText } from '../manage/shared';
 
 const MASCOTE = '/brand/atlas-mascote.gif';
+const TROCAS_NO_HISTORICO = 6; // últimas 6 perguntas e respostas são enviadas como contexto
 
-// Formata **negrito** e quebras de linha. O texto vira nós de React (sem HTML), então nada é executado.
-function textoComNegrito(linha, chave) {
-  return linha.split(/\*\*(.+?)\*\*/g).map((parte, i) =>
-    i % 2 === 1 ? <strong key={`${chave}-${i}`}>{parte}</strong> : <Fragment key={`${chave}-${i}`}>{parte}</Fragment>
-  );
+// Negrito, itálico e `código` viram elementos de React (sem HTML cru).
+function formatarLinha(linha, chave) {
+  return linha.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*)/g).map((parte, i) => {
+    const k = `${chave}-${i}`;
+    if (/^\*\*[^*]+\*\*$/.test(parte)) return <strong key={k}>{parte.slice(2, -2)}</strong>;
+    if (/^`[^`]+`$/.test(parte)) return <code key={k}>{parte.slice(1, -1)}</code>;
+    if (/^\*[^*\s][^*]*\*$/.test(parte)) return <em key={k}>{parte.slice(1, -1)}</em>;
+    return <Fragment key={k}>{parte}</Fragment>;
+  });
 }
 
-// Respostas da IA chegam com listas (* item) e negrito. Monta parágrafos e listas, sem HTML cru.
+// Respostas da IA chegam com parágrafos, listas (* item) e destaques. Monta blocos com classes próprias.
 function renderizarResposta(texto) {
   const blocos = [];
   let lista = null;
@@ -19,15 +24,25 @@ function renderizarResposta(texto) {
 
   const fecharParagrafo = () => {
     if (paragrafo.length) {
-      blocos.push(<p key={`p-${blocos.length}`}>{paragrafo.map((l, i) => (
-        <Fragment key={i}>{i > 0 && <br />}{textoComNegrito(l, `${blocos.length}-${i}`)}</Fragment>
-      ))}</p>);
+      const n = blocos.length;
+      blocos.push(
+        <p key={`p-${n}`}>
+          {paragrafo.map((l, i) => (
+            <Fragment key={i}>{i > 0 && <br />}{formatarLinha(l, `${n}-${i}`)}</Fragment>
+          ))}
+        </p>
+      );
       paragrafo = [];
     }
   };
   const fecharLista = () => {
     if (lista) {
-      blocos.push(<ul key={`ul-${blocos.length}`}>{lista.map((item, i) => <li key={i}>{textoComNegrito(item, `li-${blocos.length}-${i}`)}</li>)}</ul>);
+      const n = blocos.length;
+      blocos.push(
+        <ul key={`ul-${n}`}>
+          {lista.map((item, i) => <li key={i}>{formatarLinha(item, `li-${n}-${i}`)}</li>)}
+        </ul>
+      );
       lista = null;
     }
   };
@@ -56,10 +71,11 @@ export default function TutorIa({ lesson }) {
   const [disponivel, setDisponivel] = useState(false);
   const [aberto, setAberto] = useState(false);
   const [pergunta, setPergunta] = useState('');
-  const [perguntaEnviada, setPerguntaEnviada] = useState('');
-  const [resposta, setResposta] = useState('');
+  // Conversa da aula: [{ papel: 'aluno' | 'atlas', texto }]. Fica só na tela; não é gravada.
+  const [conversa, setConversa] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const fimRef = useRef(null);
 
   useEffect(() => {
     let ativo = true;
@@ -71,26 +87,41 @@ export default function TutorIa({ lesson }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (aberto) fimRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+  }, [conversa, enviando, aberto]);
+
   if (!disponivel) return null;
 
   async function enviar(evento) {
     evento.preventDefault();
     if (!pergunta.trim() || enviando) return;
     const texto = pergunta.trim();
+    // Histórico em formato de API: só trocas concluídas (sem a pergunta atual, que vai à parte).
+    const historico = conversa
+      .slice(-TROCAS_NO_HISTORICO * 2)
+      .map((m) => ({ role: m.papel === 'aluno' ? 'user' : 'assistant', content: m.texto }));
+
     setEnviando(true);
     setErro('');
-    setResposta('');
-    setPerguntaEnviada(texto);
     setPergunta('');
+    setConversa((atual) => [...atual, { papel: 'aluno', texto }]);
+
+    const falhar = (mensagem) => {
+      setConversa((atual) => atual.slice(0, -1)); // a pergunta que falhou volta para o campo
+      setPergunta(texto);
+      setErro(mensagem);
+    };
+
     try {
-      const resp = await perguntarTutor({ pergunta: texto, aulaId: lesson.id });
+      const resp = await perguntarTutor({ pergunta: texto, aulaId: lesson.id, historico });
       if (resp && resp.trim()) {
-        setResposta(resp);
+        setConversa((atual) => [...atual, { papel: 'atlas', texto: resp }]);
       } else {
-        setErro('O Atlas não conseguiu responder desta vez. Tente reformular a pergunta.');
+        falhar('O Atlas não conseguiu responder desta vez. Tente reformular a pergunta.');
       }
     } catch (error) {
-      setErro(errorText(error, 'O assistente não respondeu agora. Tente de novo.'));
+      falhar(errorText(error, 'O assistente não respondeu agora. Tente de novo.'));
     } finally {
       setEnviando(false);
     }
@@ -119,20 +150,55 @@ export default function TutorIa({ lesson }) {
           <strong>Atlas</strong>
           <small>Tire sua dúvida sobre esta aula</small>
         </span>
+        {conversa.length > 0 && (
+          <button type="button" className="tutor-ia-novo" onClick={() => setConversa([])} disabled={enviando}>
+            Nova conversa
+          </button>
+        )}
         <button type="button" className="tutor-ia-fechar" onClick={() => setAberto(false)} aria-label="Fechar o Atlas">
           ×
         </button>
       </header>
 
-      <form onSubmit={enviar}>
-        <label htmlFor={`tutor-ia-${lesson?.id}`}>Sua dúvida</label>
+      {conversa.length > 0 && (
+        <div className="tutor-ia-conversa">
+          {conversa.map((m, i) =>
+            m.papel === 'aluno' ? (
+              <div key={i} className="tutor-ia-balao-pergunta">{m.texto}</div>
+            ) : (
+              <div key={i} className="tutor-ia-balao-resposta">
+                <img src={MASCOTE} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
+                <div className="tutor-ia-resposta">{renderizarResposta(m.texto)}</div>
+              </div>
+            )
+          )}
+          {enviando && (
+            <div className="tutor-ia-digitando" role="status" aria-live="polite">
+              <span /><span /><span />
+              <small>O Atlas está pensando</small>
+            </div>
+          )}
+          <div ref={fimRef} />
+        </div>
+      )}
+
+      {erro && <div className="alert error manage-feedback" role="status">{erro}</div>}
+
+      <form onSubmit={enviar} className="tutor-ia-form">
+        <label htmlFor={`tutor-ia-${lesson?.id}`}>{conversa.length ? 'Continue a conversa' : 'Sua dúvida'}</label>
         <textarea
           id={`tutor-ia-${lesson?.id}`}
-          rows={3}
+          rows={2}
           maxLength={2000}
           value={pergunta}
           placeholder="Escreva sua pergunta sobre a aula…"
           onChange={(e) => setPergunta(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
         />
         <div className="tutor-ia-acoes">
           <button type="submit" className="primary-button small" disabled={enviando || !pergunta.trim()}>
@@ -140,26 +206,6 @@ export default function TutorIa({ lesson }) {
           </button>
         </div>
       </form>
-
-      {perguntaEnviada && (
-        <div className="tutor-ia-balao-pergunta">{perguntaEnviada}</div>
-      )}
-
-      {enviando && (
-        <div className="tutor-ia-digitando" role="status" aria-live="polite">
-          <span /><span /><span />
-          <small>O Atlas está pensando</small>
-        </div>
-      )}
-
-      {erro && <div className="alert error manage-feedback" role="status">{erro}</div>}
-
-      {resposta && (
-        <div className="tutor-ia-balao-resposta">
-          <img src={MASCOTE} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
-          <div className="tutor-ia-resposta">{renderizarResposta(resposta)}</div>
-        </div>
-      )}
     </div>
   );
 }

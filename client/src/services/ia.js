@@ -13,7 +13,8 @@ export async function definirEstadoIa(ligada) {
 }
 
 // Pergunta ao tutor. O servidor lê o material da aula pelo ID.
-export async function perguntarTutor({ pergunta, aulaId }) {
-  const { data } = await api.post('/ia/tutor', { pergunta, aulaId });
+// "historico" são as trocas anteriores da conversa ([{ role: 'user' | 'assistant', content }]), para o diálogo continuar.
+export async function perguntarTutor({ pergunta, aulaId, historico = [] }) {
+  const { data } = await api.post('/ia/tutor', { pergunta, aulaId, historico });
   return data.resposta;
 }
