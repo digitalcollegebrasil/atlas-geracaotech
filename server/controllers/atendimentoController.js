@@ -186,14 +186,15 @@ exports.arquivar = async (req, res) => {
   return res.json({ status: 'arquivado' });
 };
 
-// Encaminha a conversa técnica do atendimento para a monitoria.
-exports.encaminharMonitoria = async (req, res) => {
+// Encaminha a conversa para o outro canal: atendente manda para a monitoria; monitor manda para o atendimento.
+exports.encaminhar = async (req, res) => {
   const sessao = await sessaoDaEquipe(req);
-  const resultado = await atendimento.encaminharParaMonitoria(sessao);
+  const destino = req.user.role === 'monitor' ? 'atendimento' : 'monitoria';
+  const resultado = await atendimento.encaminharParaCanal(sessao, destino);
   if (resultado === 'finalizada') throw httpError(409, 'Este atendimento já foi finalizado.');
-  if (resultado === 'ja_monitoria') throw httpError(409, 'Esta conversa já está com a monitoria.');
-  if (resultado === 'ja_existe') throw httpError(409, 'O aluno já tem uma conversa aberta com a monitoria.');
-  return res.json({ status: 'monitoria' });
+  if (resultado === 'ja_no_destino') throw httpError(409, 'Esta conversa já está nesse canal.');
+  if (resultado === 'ja_existe') throw httpError(409, `O aluno já tem uma conversa aberta em ${destino === 'monitoria' ? 'monitoria' : 'atendimento'}.`);
+  return res.json({ status: destino });
 };
 
 // ── Perguntas frequentes (administração) ───────────────────────────────

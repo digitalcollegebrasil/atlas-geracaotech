@@ -1,3 +1,4 @@
+import SenhaInput from '../components/SenhaInput';
 import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import useForm from '../hooks/useForm';
@@ -339,6 +340,7 @@ export default function ManageUsersPage() {
                 <option value="teacher">Professor</option>
                 <option value="admin">Administrador</option>
                 <option value="atendente">Atendente</option>
+                <option value="monitor">Monitor(a)</option>
                 <option value="gestao">Gestão</option>
                 <option value="editor">Editor</option>
               </select>
@@ -358,7 +360,7 @@ export default function ManageUsersPage() {
             ) : (
               <label>
                 <span>Senha inicial (mín. 8, com maiúscula, minúscula, número, acento e símbolo)</span>
-                <input name="password" type="password" minLength="8" value={values.password} onChange={handleChange} required />
+                <SenhaInput name="password" minLength="8" value={values.password} onChange={handleChange} required />
               </label>
             )}
           </div>

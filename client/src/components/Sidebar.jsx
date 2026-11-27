@@ -22,9 +22,10 @@ const teachingItems = [
 // Monitoria: mural para ajudar os alunos e o ponto de monitoria.
 const monitorItems = [
   { to: '/monitoria', label: 'Atendimento técnico', icon: 'chat' },
-  { to: '/monitoria/codice', label: 'Codice', icon: 'book' },
+  { to: '/editor', label: 'Codice', icon: 'book' },
   { to: '/mural', label: 'Mural', icon: 'bell' },
   { to: '/ponto', label: 'Meu ponto', icon: 'clock' },
+  { to: '/manual', label: 'Manual', icon: 'bulb' },
   { to: '/minha-area', label: 'Meu perfil', icon: 'user' }
 ];
 const atendenteItems = [
@@ -58,7 +59,7 @@ const adminItems = [
   { to: '/gestao/relatorios', label: 'Relatórios', icon: 'grid' },
   { to: '/gestao/atendimento', label: 'Atendimento', icon: 'chat' },
   { to: '/monitoria', label: 'Monitoria', icon: 'chat' },
-  { to: '/monitoria/codice', label: 'Codice (monitoria)', icon: 'book' },
+  { to: '/manual', label: 'Manual', icon: 'bulb' },
   { to: '/gestao/acompanhamento', label: 'Acompanhamento', icon: 'chart' },
   { to: '/gestao/justificativas', label: 'Justificativas', icon: 'bulb' },
   { to: '/gestao/ponto', label: 'Ponto dos professores', icon: 'clock' },

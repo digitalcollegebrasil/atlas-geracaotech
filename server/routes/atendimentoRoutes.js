@@ -24,7 +24,7 @@ router.get('/gestao/sessoes/:id', requireRole('admin', 'atendente', 'monitor'), 
 // Resposta e encerramento: só o atendente. A administração apenas acompanha.
 router.post('/gestao/sessoes/:id/mensagens', requireRole('atendente', 'monitor'), asyncHandler(atendimento.responder));
 router.post('/gestao/sessoes/:id/finalizar', requireRole('atendente', 'monitor'), asyncHandler(atendimento.finalizar));
-router.post('/gestao/sessoes/:id/encaminhar-monitoria', requireRole('atendente'), asyncHandler(atendimento.encaminharMonitoria));
+router.post('/gestao/sessoes/:id/encaminhar', requireRole('atendente', 'monitor'), asyncHandler(atendimento.encaminhar));
 router.post('/gestao/sessoes/:id/arquivar', requireRole('atendente', 'monitor'), asyncHandler(atendimento.arquivar));
 router.post('/gestao/sessoes/:id/anexo', requireRole('atendente', 'monitor'), asyncHandler(atendimento.anexoEquipe));
 

@@ -5,7 +5,7 @@ import AvatarImg from './AvatarImg';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated, isAdmin, isTeacher, isAtendente, logout, user } = useAuth();
+  const { isAuthenticated, isAdmin, isTeacher, isAtendente, isMonitor, logout, user } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -22,12 +22,15 @@ export default function Navbar() {
 
       <nav className="nav-links">
         {isAuthenticated && isAtendente && <NavLink to="/gestao/atendimento">Atendimento</NavLink>}
-        {isAuthenticated && !isAtendente && <NavLink to="/dashboard">Dashboard</NavLink>}
-        {isAuthenticated && !isAtendente && <NavLink to="/cursos">Trilhas</NavLink>}
-        {isAuthenticated && !isAtendente && (!isTeacher || isAdmin) && <NavLink to="/documentos">Documentos</NavLink>}
-        {isAuthenticated && !isTeacher && !isAtendente && <NavLink to="/anotacoes">Anotações</NavLink>}
-        {isAuthenticated && !isTeacher && !isAtendente && <NavLink to="/editor">Editor</NavLink>}
-        {isAuthenticated && !isTeacher && !isAtendente && <NavLink to="/jogo">Codey</NavLink>}
+        {isAuthenticated && !isAtendente && !isMonitor && <NavLink to="/dashboard">Dashboard</NavLink>}
+        {isAuthenticated && !isAtendente && !isMonitor && <NavLink to="/cursos">Trilhas</NavLink>}
+        {isAuthenticated && !isAtendente && !isMonitor && (!isTeacher || isAdmin) && <NavLink to="/documentos">Documentos</NavLink>}
+        {isAuthenticated && !isTeacher && !isAtendente && !isMonitor && <NavLink to="/anotacoes">Anotações</NavLink>}
+        {isAuthenticated && !isTeacher && !isAtendente && !isMonitor && <NavLink to="/editor">Editor</NavLink>}
+        {isAuthenticated && !isTeacher && !isAtendente && !isMonitor && <NavLink to="/jogo">Codey</NavLink>}
+        {isAuthenticated && isMonitor && <NavLink to="/monitoria">Monitoria</NavLink>}
+        {isAuthenticated && isMonitor && <NavLink to="/editor">Codice</NavLink>}
+        {isAuthenticated && isMonitor && <NavLink to="/manual">Manual</NavLink>}
         {isAuthenticated && isTeacher && !isAtendente && <NavLink to="/gestao">Gestão</NavLink>}
       </nav>
 

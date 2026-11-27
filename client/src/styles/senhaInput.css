@@ -1,0 +1,34 @@
+.senha-input {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.senha-input input {
+  width: 100%;
+  padding-right: 2.6rem;
+}
+
+.senha-olho {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary, #2a6f97);
+  cursor: pointer;
+}
+
+.senha-olho:hover,
+.senha-olho:focus-visible {
+  background: rgba(42, 111, 151, 0.1);
+}
