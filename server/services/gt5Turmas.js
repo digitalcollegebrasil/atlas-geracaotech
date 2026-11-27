@@ -123,13 +123,13 @@ async function conferirLinhas(client, registros) {
   return erros;
 }
 
-// Importa a planilha inteira numa transação. Devolve quantas turmas foram criadas e atualizadas.
-async function importarTurmas(client, texto) {
-  const registros = lerCsv(texto);
+// Confere e grava as turmas numa transação. Se houver erro, nada é gravado.
+// Usada pela planilha e pela integração JSON, para as duas seguirem a mesma regra.
+async function aplicarRegistros(client, registros) {
   if (!registros.length) throw httpError(400, 'A planilha não tem turmas.');
   const erros = await conferirLinhas(client, registros);
   if (erros.length) {
-    const error = httpError(400, 'A planilha tem erros. Nenhuma turma foi importada.');
+    const error = httpError(400, 'Há erros nas turmas. Nenhuma turma foi gravada.');
     error.detalhes = erros;
     throw error;
   }
@@ -145,4 +145,57 @@ async function importarTurmas(client, texto) {
   return { criadas, atualizadas, total: registros.length };
 }
 
-module.exports = { COLUNAS, lerCsv, linhaParaTurma, importarTurmas };
+// Importa a planilha inteira (texto CSV).
+async function importarTurmas(client, texto) {
+  return aplicarRegistros(client, lerCsv(texto));
+}
+
+// Mesma regra da planilha, em JSON: uma lista de objetos com as colunas acima.
+// Coluna que não existe é recusada; valor nulo conta como vazio; ativa aceita true/false ou sim/não.
+function registrosDeLista(lista) {
+  if (!Array.isArray(lista)) throw httpError(400, 'Envie a lista de turmas em "turmas".');
+  if (lista.length > MAX_LINHAS) throw httpError(400, `No máximo ${MAX_LINHAS} turmas por envio.`);
+  return lista.map((item, i) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw httpError(400, `Item ${i + 1} da lista não é um objeto.`);
+    const desconhecidas = Object.keys(item).filter((c) => !COLUNAS.includes(c));
+    if (desconhecidas.length) throw httpError(400, `Item ${i + 1}: campos não reconhecidos: ${desconhecidas.join(', ')}.`);
+    const registro = { _linha: i + 1 };
+    COLUNAS.forEach((coluna) => {
+      const valor = item[coluna];
+      registro[coluna] = valor === undefined || valor === null ? '' : String(valor);
+    });
+    return registro;
+  });
+}
+
+// Uma célula do CSV, com aspas quando tem separador ou aspas. Quebra de linha vira espaço,
+// porque a leitura da planilha é por linha.
+function celulaCsv(valor) {
+  const texto = valor === null || valor === undefined ? '' : String(valor).replace(/\r?\n/g, ' ');
+  return /[",;]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+}
+
+// Exporta as turmas das formações GT 5.0 no mesmo formato que a importação aceita.
+// Assim a planilha exportada serve de modelo para a próxima importação.
+async function exportarCsv(client) {
+  const { rows } = await client.query(
+    `select t.external_id as codigo, c.slug as curso, t.modalidade, s.nome as sede, t.nome, t.turno,
+            t.dias_semana, t.horario,
+            to_char(t.data_inicio, 'YYYY-MM-DD') as data_inicio,
+            to_char(t.data_fim, 'YYYY-MM-DD') as data_fim,
+            t.ativa
+     from turmas t
+     join formacoes_edicao f on f.course_id = t.curso_id
+     join courses c on c.id = t.curso_id
+     left join sedes s on s.id = t.sede_id
+     order by c.slug, s.nome nulls first, t.nome`
+  );
+  const linhas = rows.map((r) => [
+    r.codigo ?? '', r.curso, r.modalidade, r.sede ?? '', r.nome, r.turno, r.dias_semana, r.horario,
+    r.data_inicio ?? '', r.data_fim ?? '', r.ativa ? 'sim' : 'não',
+  ].map(celulaCsv).join(','));
+  // BOM no início para o Excel abrir com acentos certos. A importação já aceita o BOM.
+  return '﻿' + [COLUNAS.join(','), ...linhas].join('\r\n') + '\r\n';
+}
+
+module.exports = { COLUNAS, lerCsv, linhaParaTurma, importarTurmas, aplicarRegistros, registrosDeLista, exportarCsv, celulaCsv };
