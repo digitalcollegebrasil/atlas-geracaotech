@@ -12,6 +12,7 @@ import { errorText } from '../manage/shared';
 import { sanitizeLessonHtml } from '../../utils/lessonHtml';
 import { guardarModelo, lerModelo } from '../../utils/modeloLeitura';
 import EspacoIncorporado from './EspacoIncorporado';
+import TutorIa from '../ia/TutorIa';
 
 // Modo leitura: a aula ocupa a tela inteira, sem a trilha e o restante da página.
 // Navegação por Anterior/Próxima (ou setas do teclado); Esc ou "Sair" devolvem à página do curso.
@@ -300,6 +301,8 @@ export default function ReadingMode({ course, entries, index, completedSet, onIn
           {lesson.type === 'ao_vivo' ? <AulaAoVivoCard lesson={lesson} /> : <LessonBody content={lesson.content} modelo={modelo} />}
             </>
           )}
+
+          {!editing && lesson.type !== 'ao_vivo' && <TutorIa lesson={lesson} />}
 
           {next && (
             <div className="reading-next">

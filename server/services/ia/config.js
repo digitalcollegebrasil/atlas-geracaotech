@@ -12,6 +12,8 @@ function lerConfig(env = process.env) {
     baseUrl: (env.IA_BASE_URL || '').trim(),
     timeoutMs: Number(env.IA_TIMEOUT_MS) || 30000,
     maxTokensSaida: Number(env.IA_MAX_TOKENS_SAIDA) || 800,
+    // Nivel de raciocinio do Gemini 3/4 (low, medium, high, xhigh). Vazio = padrao do adaptador.
+    raciocinio: (env.IA_NIVEL_RACIOCINIO || '').trim().toLowerCase(),
     modulos: (env.IA_MODULOS_ATIVOS || '')
       .split(',')
       .map((m) => m.trim())

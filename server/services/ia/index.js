@@ -48,6 +48,7 @@ async function gerarResposta(
   const r = await adaptador.chamar({
     chave: cfg.chave,
     modelo: cfg.modelo,
+    raciocinio: cfg.raciocinio,
     baseUrl: cfg.baseUrl,
     sistema,
     mensagens: msgs,

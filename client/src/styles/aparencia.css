@@ -99,14 +99,45 @@
 }
 .tutor-ia-balao-resposta { display: flex; gap: 0.6rem; align-items: flex-start; animation: tutor-surgir 0.45s ease-out; }
 .tutor-ia-balao-resposta .tutor-ia-mascote { width: 56px; margin-top: 0.25rem; }
-.tutor-ia-resposta {
-  flex: 1; min-width: 0; padding: 0.8rem 1rem; line-height: 1.6;
-  background: var(--bg-muted); border-radius: 4px 16px 16px 16px;
+/* Resposta do Atlas: azul claro suave, texto legível e sem contraste pesado */
+.tutor-ia {
+  --tutor-bolha: #eef6fb;
+  --tutor-bolha-borda: #d5e7f3;
+  --tutor-bolha-texto: #2b3a4a;
+  --tutor-destaque: #2a6f97;
 }
-.tutor-ia-resposta p { margin: 0 0 0.5rem; }
+[data-theme="dark"] .tutor-ia {
+  --tutor-bolha: #1f3140;
+  --tutor-bolha-borda: #2c4456;
+  --tutor-bolha-texto: #e3edf5;
+  --tutor-destaque: #8cc4e6;
+}
+.tutor-ia-resposta {
+  flex: 1; min-width: 0; padding: 0.9rem 1.1rem; font-size: 0.97rem; line-height: 1.7;
+  color: var(--tutor-bolha-texto);
+  background: var(--tutor-bolha); border: 1px solid var(--tutor-bolha-borda);
+  border-radius: 4px 18px 18px 18px;
+}
+.tutor-ia-resposta p { margin: 0 0 0.6rem; }
 .tutor-ia-resposta p:last-child, .tutor-ia-resposta ul:last-child { margin-bottom: 0; }
-.tutor-ia-resposta ul { margin: 0 0 0.5rem; padding-left: 1.2rem; }
-.tutor-ia-resposta li { margin: 0.15rem 0; }
+.tutor-ia-resposta ul { margin: 0 0 0.6rem; padding-left: 0; list-style: none; display: grid; gap: 0.35rem; }
+.tutor-ia-resposta li { position: relative; padding-left: 1.1rem; }
+.tutor-ia-resposta li::before {
+  content: ""; position: absolute; left: 0.1rem; top: 0.7em; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--tutor-destaque);
+}
+.tutor-ia-resposta strong { color: var(--tutor-destaque); font-weight: 700; }
+.tutor-ia-resposta code {
+  font-size: 0.88em; padding: 0.05rem 0.35rem; border-radius: 6px;
+  background: rgba(42, 111, 151, 0.12); color: var(--tutor-destaque);
+}
+.tutor-ia-conversa { display: grid; gap: 0.75rem; max-height: 420px; overflow-y: auto; padding: 0.25rem 0.25rem 0.25rem 0; }
+.tutor-ia-form { display: grid; gap: 0.4rem; }
+.tutor-ia-form textarea { border-radius: 12px; }
+.tutor-ia-novo {
+  border: 0; background: transparent; color: var(--tutor-destaque, var(--primary)); font: inherit;
+  font-size: 0.85rem; cursor: pointer; text-decoration: underline; white-space: nowrap;
+}
 
 /* Indicador de digitação */
 .tutor-ia-digitando { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
