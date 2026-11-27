@@ -9,10 +9,9 @@
 /* Abas: mesmo estilo das abas do painel */
 .gt5-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
-  overflow-x: auto;
   border-bottom: 1px solid var(--border);
-  scrollbar-width: thin;
 }
 
 /* Bloco de conteúdo de cada aba */
@@ -187,6 +186,9 @@
 /* Botão de arquivo com aparência de botão */
 .gt5-arquivo {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
   overflow: hidden;
   cursor: pointer;
 }
