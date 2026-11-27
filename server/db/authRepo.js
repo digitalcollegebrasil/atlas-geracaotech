@@ -104,18 +104,35 @@ async function setPasswordHash(userId, passwordHash, { mustChangePassword = fals
   return rows[0] ? rows[0].token_version : null;
 }
 
-async function listLoginEvents({ userId = null, limit = 200 } = {}) {
+async function listLoginEvents({ userId = null, limit = 200, resultado = null, de = null, ate = null, busca = null } = {}) {
   const params = [Math.min(Number(limit) || 200, 1000)];
-  let where = '';
+  const where = [];
   if (userId) {
     params.push(userId);
-    where = 'where e.user_id = $2';
+    where.push(`e.user_id = $${params.length}`);
   }
+  if (resultado === 'sucesso') where.push('e.success = true');
+  if (resultado === 'falha') where.push('e.success = false');
+  // Datas pelo calendário de São Paulo, para o filtro bater com o que a tela mostra.
+  if (de) {
+    params.push(de);
+    where.push(`(e.created_at at time zone 'America/Sao_Paulo')::date >= $${params.length}::date`);
+  }
+  if (ate) {
+    params.push(ate);
+    where.push(`(e.created_at at time zone 'America/Sao_Paulo')::date <= $${params.length}::date`);
+  }
+  if (busca) {
+    params.push(`%${String(busca).replace(/[\\%_]/g, '\\$&')}%`);
+    const i = params.length;
+    where.push(`(u.name ilike $${i} or u.email ilike $${i} or e.identifier ilike $${i} or e.reason ilike $${i} or e.ip ilike $${i})`);
+  }
+  const clausula = where.length ? `where ${where.join(' and ')}` : '';
   const { rows } = await query(
     `select e.id, e.identifier, e.ip, e.success, e.reason, e.created_at, u.name, u.email
        from login_events e
        left join users u on u.id = e.user_id
-       ${where}
+       ${clausula}
       order by e.created_at desc
       limit $1`,
     params
