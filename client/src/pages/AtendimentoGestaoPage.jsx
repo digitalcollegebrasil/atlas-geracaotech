@@ -205,7 +205,7 @@ export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
             <button type="button" role="tab" aria-selected={aba === 'conversas'} className={aba === 'conversas' ? 'is-active' : ''} onClick={() => setAba('conversas')}>
               Conversas {totalAguardando > 0 && <span className="atend-badge">{totalAguardando}</span>}
             </button>
-            {isAdmin && canal === 'atendimento' && (
+            {isAdmin && (
               <button type="button" role="tab" aria-selected={aba === 'faq'} className={aba === 'faq' ? 'is-active' : ''} onClick={() => setAba('faq')}>
                 Perguntas do robô
               </button>
@@ -227,7 +227,7 @@ export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
         )}
 
         {aba === 'faq' && isAdmin ? (
-          <FaqManager />
+          <FaqManager canal={canal} />
         ) : (
           <div className="atend-layout">
             <aside className="atend-fila" aria-label="Fila de conversas">

@@ -212,11 +212,19 @@ function dadosFaq(body) {
     palavras: palavras.slice(0, 1000),
     ativo: Boolean(body?.ativo),
     revisado: Boolean(body?.revisado),
+    canal: CANAIS.includes(body?.canal) ? body.canal : 'atendimento',
     ordem: Number.isFinite(Number(body?.ordem)) ? Math.trunc(Number(body.ordem)) : 0
   };
 }
 
-exports.listarFaq = async (req, res) => res.json({ faq: await atendimento.listarFaq() });
+exports.listarFaq = async (req, res) => res.json({ faq: await atendimento.listarFaq(canalDeQuery(req)) });
+
+// Canal informado na consulta (atendimento por padrão).
+function canalDeQuery(req) {
+  const canal = String(req.query?.canal || 'atendimento');
+  if (!CANAIS.includes(canal)) throw httpError(400, 'Canal inválido.');
+  return canal;
+}
 
 exports.criarFaq = async (req, res) => res.status(201).json({ item: await atendimento.salvarFaq(null, dadosFaq(req.body)) });
 

@@ -328,17 +328,18 @@ function mapFaq(row) {
     resposta: row.resposta,
     ativo: row.ativo,
     revisado: row.revisado,
-    ordem: row.ordem
+    ordem: row.ordem,
+    canal: row.canal
   };
 }
 
-async function listarFaq() {
-  const { rows } = await query('select * from atendimento_faq order by ordem, titulo');
+async function listarFaq(canal = 'atendimento') {
+  const { rows } = await query('select * from atendimento_faq where canal = $1 order by ordem, titulo', [canal]);
   return rows.map(mapFaq);
 }
 
 async function salvarFaq(id, dados) {
-  const campos = [dados.titulo, dados.palavras, dados.resposta, dados.ativo, dados.revisado, dados.ordem];
+  const campos = [dados.titulo, dados.palavras, dados.resposta, dados.ativo, dados.revisado, dados.ordem, dados.canal];
   if (id) {
     const { rows } = await query(
       `update atendimento_faq
@@ -349,8 +350,8 @@ async function salvarFaq(id, dados) {
     return rows[0] ? mapFaq(rows[0]) : null;
   }
   const { rows } = await query(
-    `insert into atendimento_faq (titulo, palavras, resposta, ativo, revisado, ordem)
-     values ($1, $2, $3, $4, $5, $6) returning *`,
+    `insert into atendimento_faq (titulo, palavras, resposta, ativo, revisado, ordem, canal)
+     values ($1, $2, $3, $4, $5, $6, $7) returning *`,
     campos
   );
   return mapFaq(rows[0]);

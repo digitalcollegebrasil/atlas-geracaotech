@@ -264,7 +264,7 @@ export default function App() {
         <Route
           path="/manual"
           element={
-            <ProtectedRoute roles={['monitor', 'admin']}>
+            <ProtectedRoute roles={['monitor', 'admin', 'atendente']}>
               <ManualPage />
             </ProtectedRoute>
           }

@@ -1,165 +1,122 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { Feedback, errorText } from '../components/manage/shared';
 import '../styles/manual.css';
 
-// Manual do Atlas para a monitoria: como os alunos usam cada parte, em perguntas e respostas.
-const SECOES = [
-  {
-    titulo: 'Primeiros passos',
-    perguntas: [
-      {
-        p: 'Como o aluno entra pela primeira vez?',
-        r: 'O CPF é o login e também a senha do primeiro acesso. No primeiro acesso o sistema pede que a senha seja trocada.',
-        links: [{ to: '/minha-area', label: 'Minha área (trocar senha)' }]
-      },
-      {
-        p: 'Como trocar a senha depois?',
-        r: 'Em Minha área, na seção Trocar senha: informe a senha atual, a nova senha e confirme. Use o ícone de olho para conferir o que está digitando.',
-        links: [{ to: '/minha-area', label: 'Minha área' }]
-      },
-      {
-        p: 'O menu lateral some ou fica pequeno. O que fazer?',
-        r: 'Use a setinha no topo do menu "Seu espaço" para recolher ou abrir o menu. As páginas se ajustam às duas opções.'
-      },
-      {
-        p: 'Como usar o modo escuro?',
-        r: 'Use o botão Dark mode no topo da página. A escolha fica salva no navegador.'
-      }
-    ]
-  },
-  {
-    titulo: 'Cursos e progresso',
-    perguntas: [
-      {
-        p: 'Onde o aluno encontra os cursos?',
-        r: 'Em Trilhas (Cursos). Cada curso mostra o nível, o progresso em porcentagem e a estimativa de horas. O botão Ver curso abre o conteúdo.',
-        links: [{ to: '/cursos', label: 'Cursos' }]
-      },
-    ]
-  },
-  {
-    titulo: 'Mural',
-    perguntas: [
-      {
-        p: 'Para que serve o Mural?',
-        r: 'É onde a equipe publica avisos e tópicos de fórum. Os alunos leem, respondem e acompanham os recados da turma.',
-        links: [{ to: '/mural', label: 'Mural' }]
-      }
-    ]
-  },
-  {
-    titulo: 'Codice (sala de código)',
-    perguntas: [
-      {
-        p: 'Como o aluno cria uma sala de código?',
-        r: 'Em Editor, escreva seu nome e clique em Criar nova sala. A sala abre com um código que você pode passar para a turma.',
-        links: [{ to: '/editor', label: 'Codice (Editor)' }]
-      },
-      {
-        p: 'Como entrar na sala de um colega?',
-        r: 'Em Editor, digite o código da sala no campo Entrar em uma sala e clique em Entrar. Todos escrevem no mesmo projeto.'
-      },
-      {
-        p: 'E se o código de programação não rodar?',
-        r: 'Confirme se o aluno está na sala certa e se o código está salvo. Quando a dúvida é técnica, encaminhe para a monitoria pelo chat Atendimento técnico.'
-      }
-    ]
-  },
-  {
-    titulo: 'Codey (jogo de programação)',
-    perguntas: [
-      {
-        p: 'O que é o Codey?',
-        r: 'Um jogo de programação em que o aluno treina código resolvendo desafios, sem instalar nada.',
-        links: [{ to: '/jogo', label: 'Codey' }]
-      }
-    ]
-  },
-  {
-    titulo: 'Anotações e documentos',
-    perguntas: [
-      {
-        p: 'Para que servem as Anotações?',
-        r: 'São um bloco de notas pessoal do aluno, para registrar o que aprendeu nas aulas.',
-        links: [{ to: '/anotacoes', label: 'Anotações' }]
-      },
-      {
-        p: 'Onde ficam os certificados e documentos?',
-        r: 'Em Documentos. Quando um documento estiver disponível, ele aparece nessa tela.',
-        links: [{ to: '/documentos', label: 'Documentos' }]
-      }
-    ]
-  },
-  {
-    titulo: 'Presença e cronogramas',
-    perguntas: [
-      {
-        p: 'Como o aluno acompanha a presença?',
-        r: 'Em Minha presença ele vê as presenças e faltas registradas.',
-        links: [{ to: '/presenca', label: 'Minha presença' }]
-      },
-      {
-        p: 'Onde ficam as datas das aulas?',
-        r: 'Em Cronogramas.',
-        links: [{ to: '/cronogramas', label: 'Cronogramas' }]
-      }
-    ]
-  },
-  {
-    titulo: 'Atendimento e monitoria',
-    perguntas: [
-      {
-        p: 'Como funciona o Atendimento?',
-        r: 'O assistente virtual responde às perguntas mais comuns. Escolha um assunto pronto ou escreva a dúvida. Se precisar de uma pessoa, use Falar com a equipe.',
-        links: [{ to: '/atendimento', label: 'Atendimento' }]
-      },
-      {
-        p: 'Qual o horário de atendimento da equipe?',
-        r: 'De segunda a sexta, das 9h às 17h.'
-      },
-      {
-        p: 'Quando a dúvida é técnica, o que o aluno faz?',
-        r: 'Escolha a aba Dúvidas técnicas no Atendimento. A conversa vai para a monitoria, que responde sobre aulas, código e a plataforma.',
-        links: [{ to: '/atendimento', label: 'Atendimento (Dúvidas técnicas)' }]
-      }
-    ]
-  },
-  {
-    titulo: 'Perfil',
-    perguntas: [
-      {
-        p: 'Onde o aluno atualiza os dados do perfil?',
-        r: 'Em Meu perfil, dentro de Minha área.',
-        links: [{ to: '/minha-area', label: 'Meu perfil' }]
-      }
-    ]
-  }
-];
+// Manual do Atlas: perguntas e respostas com links. A administração pode editar tudo por aqui.
+const novoId = () => Math.random().toString(36).slice(2, 10);
+const copia = (valor) => JSON.parse(JSON.stringify(valor));
 
 export default function ManualPage() {
+  const { isAdmin } = useAuth();
+  const [secoes, setSecoes] = useState(null);
+  const [rascunho, setRascunho] = useState(null); // preenchido só durante a edição
+  const [salvando, setSalvando] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    api.get('/manual')
+      .then(({ data }) => setSecoes(data.secoes))
+      .catch((error) => setFeedback({ type: 'error', text: errorText(error) }));
+  }, []);
+
+  const editando = rascunho !== null;
+  const mudar = (fn) => setRascunho((atual) => fn(copia(atual)));
+
+  const iniciarEdicao = () => {
+    setFeedback(null);
+    setRascunho(copia(secoes));
+  };
+
+  const cancelar = () => {
+    setRascunho(null);
+    setFeedback(null);
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    setFeedback(null);
+    try {
+      const { data } = await api.put('/manual', { secoes: rascunho });
+      setSecoes(data.secoes);
+      setRascunho(null);
+      setFeedback({ type: 'success', text: 'Manual salvo. Ele já aparece com a versão nova.' });
+    } catch (error) {
+      setFeedback({ type: 'error', text: errorText(error) });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  // ── Edição ──────────────────────────────────────────────────────────
+  const editarSecao = (i, campo, valor) => mudar((m) => { m[i][campo] = valor; return m; });
+  const removerSecao = (i) => mudar((m) => { m.splice(i, 1); return m; });
+  const adicionarSecao = () => mudar((m) => [...m, { id: novoId(), titulo: 'Nova seção', perguntas: [] }]);
+
+  const editarPergunta = (i, j, campo, valor) => mudar((m) => { m[i].perguntas[j][campo] = valor; return m; });
+  const removerPergunta = (i, j) => mudar((m) => { m[i].perguntas.splice(j, 1); return m; });
+  const adicionarPergunta = (i) => mudar((m) => {
+    m[i].perguntas.push({ id: novoId(), p: 'Nova pergunta', r: 'Resposta.', links: [] });
+    return m;
+  });
+
+  const editarLink = (i, j, k, campo, valor) => mudar((m) => { m[i].perguntas[j].links[k][campo] = valor; return m; });
+  const removerLink = (i, j, k) => mudar((m) => { m[i].perguntas[j].links.splice(k, 1); return m; });
+  const adicionarLink = (i, j) => mudar((m) => {
+    m[i].perguntas[j].links.push({ label: 'Abrir tela', to: '/' });
+    return m;
+  });
+
+  if (!secoes && !feedback) {
+    return (
+      <div className="dashboard-layout">
+        <Sidebar />
+        <div className="dashboard-content manual"><p className="muted">Carregando manual…</p></div>
+      </div>
+    );
+  }
+
+  const lista = editando ? rascunho : secoes || [];
+
   return (
     <div className="dashboard-layout">
       <Sidebar />
       <div className="dashboard-content manual">
         <section className="atend-head">
           <div>
-            <span className="eyebrow">Monitoria</span>
+            <span className="eyebrow">Manual</span>
             <h1>Manual do Atlas</h1>
             <p>Como os alunos podem e devem usar o Atlas, de cima a baixo. Abra cada pergunta para ver a resposta e o link da tela.</p>
           </div>
+          {isAdmin && !editando && (
+            <button type="button" className="primary-button small" onClick={iniciarEdicao}>Editar manual</button>
+          )}
+          {isAdmin && editando && (
+            <div className="manual-acoes">
+              <button type="button" className="ghost-button small" onClick={cancelar} disabled={salvando}>Cancelar</button>
+              <button type="button" className="primary-button small" onClick={salvar} disabled={salvando}>
+                {salvando ? 'Salvando…' : 'Salvar manual'}
+              </button>
+            </div>
+          )}
         </section>
 
-        {SECOES.map((secao) => (
-          <section key={secao.titulo} className="surface-card manual-secao">
+        <Feedback feedback={feedback} />
+
+        {!editando && lista.map((secao) => (
+          <section key={secao.id} className="surface-card manual-secao">
             <h2>{secao.titulo}</h2>
             {secao.perguntas.map((item) => (
-              <details key={item.p} className="manual-pergunta">
+              <details key={item.id} className="manual-pergunta">
                 <summary>{item.p}</summary>
                 <p>{item.r}</p>
-                {item.links?.length > 0 && (
+                {item.links.length > 0 && (
                   <p className="manual-links">
                     {item.links.map((link) => (
-                      <Link key={link.to} to={link.to} className="text-link">{link.label}</Link>
+                      <Link key={`${link.to}-${link.label}`} to={link.to} className="text-link">{link.label}</Link>
                     ))}
                   </p>
                 )}
@@ -167,6 +124,51 @@ export default function ManualPage() {
             ))}
           </section>
         ))}
+
+        {editando && (
+          <>
+            {lista.map((secao, i) => (
+              <section key={secao.id} className="surface-card manual-secao manual-edicao">
+                <div className="manual-linha">
+                  <label className="manual-campo">
+                    <span>Título da seção</span>
+                    <input value={secao.titulo} onChange={(e) => editarSecao(i, 'titulo', e.target.value)} maxLength={80} />
+                  </label>
+                  <button type="button" className="danger-button small" onClick={() => removerSecao(i)}>Excluir seção</button>
+                </div>
+
+                {secao.perguntas.map((item, j) => (
+                  <div key={item.id} className="manual-pergunta-edicao">
+                    <label className="manual-campo">
+                      <span>Pergunta</span>
+                      <input value={item.p} onChange={(e) => editarPergunta(i, j, 'p', e.target.value)} maxLength={160} />
+                    </label>
+                    <label className="manual-campo">
+                      <span>Resposta</span>
+                      <textarea rows={3} value={item.r} onChange={(e) => editarPergunta(i, j, 'r', e.target.value)} maxLength={2000} />
+                    </label>
+
+                    <p className="muted">Links (aparecem embaixo da resposta; use caminhos do Atlas, como /cursos)</p>
+                    {item.links.map((link, k) => (
+                      <div key={k} className="manual-linha">
+                        <input aria-label="Texto do link" value={link.label} maxLength={80} onChange={(e) => editarLink(i, j, k, 'label', e.target.value)} />
+                        <input aria-label="Caminho do link" value={link.to} maxLength={200} onChange={(e) => editarLink(i, j, k, 'to', e.target.value)} />
+                        <button type="button" className="ghost-button small" onClick={() => removerLink(i, j, k)}>Remover link</button>
+                      </div>
+                    ))}
+                    <div className="manual-linha">
+                      <button type="button" className="ghost-button small" onClick={() => adicionarLink(i, j)}>Adicionar link</button>
+                      <button type="button" className="danger-button small" onClick={() => removerPergunta(i, j)}>Excluir pergunta</button>
+                    </div>
+                  </div>
+                ))}
+
+                <button type="button" className="ghost-button small" onClick={() => adicionarPergunta(i)}>Adicionar pergunta</button>
+              </section>
+            ))}
+            <button type="button" className="primary-button small" onClick={adicionarSecao}>Adicionar seção</button>
+          </>
+        )}
       </div>
     </div>
   );
