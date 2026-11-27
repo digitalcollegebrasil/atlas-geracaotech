@@ -700,6 +700,74 @@ async function listarPontoGestao({ professorId, de, ate }) {
   return rows.map((row) => ({ ...mapPonto(row), professor: row.professor, professorId: row.professor_id }));
 }
 
+// Gestão: busca de professor por nome ou e-mail (sem diferenciar maiúsculas). Devolve os achados para checar ambiguidade.
+async function buscarProfessorPorNomeOuEmail(valor) {
+  const { rows } = await query(
+    `select id, name from users
+      where role = 'teacher' and active = true
+        and (lower(email) = lower($1) or lower(name) = lower($1))
+      limit 2`,
+    [String(valor || '').trim()]
+  );
+  return rows;
+}
+
+async function buscarTurmaPorNome(valor) {
+  const { rows } = await query('select id from turmas where lower(nome) = lower($1) limit 2', [String(valor || '').trim()]);
+  return rows;
+}
+
+// Registros criados pela gestão (manual ou importados). Horário = data + hora no fuso de São Paulo.
+async function criarPontosGestao(registros) {
+  return withTransaction(async (client) => {
+    for (const r of registros) {
+      await client.query(
+        `insert into ponto_professor (user_id, turma_id, data, tipo, titulo, entrada, saida, observacao, origem, corrigido)
+         values ($1, $2, $3::date, $4, $5,
+                 ($3::date + $6::time) at time zone 'America/Sao_Paulo',
+                 case when $7::text is null then null else ($3::date + $7::time) at time zone 'America/Sao_Paulo' end,
+                 $8, 'gestao', true)`,
+        [r.userId, r.turmaId || null, r.data, r.tipo, r.titulo || '', r.entrada, r.saida || null, r.observacao || '']
+      );
+    }
+    return registros.length;
+  });
+}
+
+// Edição pela gestão. Só altera o que vier marcado (flags), para edição em lote não mexer em horários.
+async function editarPontosGestao(ids, campos) {
+  const { rows } = await query(
+    `update ponto_professor set
+        data = coalesce($2::date, data),
+        turma_id = case when $3::boolean then $4::uuid else turma_id end,
+        tipo = coalesce($5::text, tipo),
+        titulo = coalesce($6::text, titulo),
+        observacao = coalesce($7::text, observacao),
+        entrada = case when $8::boolean then (coalesce($2::date, data) + $9::time) at time zone 'America/Sao_Paulo' else entrada end,
+        saida = case when $10::boolean then
+                  case when $11::text is null then null else (coalesce($2::date, data) + $11::time) at time zone 'America/Sao_Paulo' end
+                else saida end,
+        corrigido = true,
+        origem = 'gestao'
+      where id = any($1::uuid[])
+      returning id`,
+    [
+      ids,
+      campos.data ?? null,
+      'turmaId' in campos, campos.turmaId ?? null,
+      campos.tipo ?? null, campos.titulo ?? null, campos.observacao ?? null,
+      'entrada' in campos, campos.entrada ?? null,
+      'saida' in campos, campos.saida ?? null
+    ]
+  );
+  return rows.length;
+}
+
+async function excluirPontosGestao(ids) {
+  const { rows } = await query('delete from ponto_professor where id = any($1::uuid[]) returning id', [ids]);
+  return rows.length;
+}
+
 // Correção feita pela administração: marca como corrigido e guarda a origem.
 async function corrigirPonto(pontoId, { entrada, saida, observacao }) {
   const { rows } = await query(
@@ -774,6 +842,11 @@ module.exports = {
   registrarAulaExtra,
   historicoPonto,
   listarPontoGestao,
+  buscarProfessorPorNomeOuEmail,
+  buscarTurmaPorNome,
+  criarPontosGestao,
+  editarPontosGestao,
+  excluirPontosGestao,
   corrigirPonto,
   listarArquivos,
   arquivoDoProfessor,

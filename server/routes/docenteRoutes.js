@@ -7,6 +7,12 @@ const asyncHandler = require('../utils/asyncHandler');
 const router = express.Router();
 router.get('/gestao/ponto', requireRole('admin', 'gestao'), asyncHandler(docente.gestaoPonto));
 router.get('/gestao/ponto/exportar', requireRole('admin', 'gestao'), asyncHandler(docente.exportarPontoGestao));
+router.post('/gestao/ponto', requireRole('admin', 'gestao'), asyncHandler(docente.criarPontoGestao));
+router.patch('/gestao/ponto/:pontoId', requireRole('admin', 'gestao'), asyncHandler(docente.editarPontoGestao));
+router.delete('/gestao/ponto/:pontoId', requireRole('admin', 'gestao'), asyncHandler(docente.excluirPontoGestao));
+router.post('/gestao/ponto/lote', requireRole('admin', 'gestao'), asyncHandler(docente.lotePontoGestao));
+router.post('/gestao/ponto/importar', requireRole('admin', 'gestao'), asyncHandler(docente.importarPontoGestao));
+router.get('/gestao/ponto/modelo', requireRole('admin', 'gestao'), asyncHandler(docente.modeloPontoGestao));
 router.use(requireRole('admin', 'teacher'));
 
 // Turmas e cronograma das turmas que ministra. Editar o cronograma é só da administração.

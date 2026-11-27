@@ -1,4 +1,5 @@
 const docente = require('../db/docenteRepo');
+const pontoGestao = require('../services/pontoGestao');
 const presenca = require('../db/presencaRepo');
 const httpError = require('../utils/httpError');
 const { hojeSP } = require('../utils/periodo');
@@ -415,7 +416,97 @@ exports.gestaoPonto = async (req, res) => {
   const { de, ate } = periodoDoRequest(req.query);
   const professorId = req.query.professorId ? uuidOu404(req.query.professorId) : null;
   const registros = await docente.listarPontoGestao({ professorId, de, ate });
-  return res.json({ de, ate, registros, professores: await docente.listarProfessores() });
+  const turmas = (await docente.todasAsTurmas()).map((t) => ({ id: t.id, nome: t.nome }));
+  return res.json({ de, ate, registros, professores: await docente.listarProfessores(), turmas });
+};
+
+// ---------- Gestão do ponto: incluir, editar (um ou vários), excluir e importar planilha ----------
+
+const PONTO_TIPOS = ['aula', 'extra'];
+
+// Valida o corpo de um registro de ponto feito pela gestão. Mesmas regras da planilha.
+function registroDoCorpo(corpo, { comProfessor }) {
+  const campos = {};
+  if (comProfessor) campos.userId = uuidDoCorpo(corpo.professorId, 'Professor');
+  campos.data = dataValida(corpo.data, 'Data');
+  campos.tipo = PONTO_TIPOS.includes(corpo.tipo) ? corpo.tipo : (() => { throw httpError(400, 'Tipo deve ser aula ou extra.'); })();
+  campos.turmaId = corpo.turmaId ? uuidDoCorpo(corpo.turmaId, 'Turma') : null;
+  campos.titulo = textoOpcional(corpo.titulo, 120, 'Título');
+  if (campos.tipo === 'extra' && !campos.titulo) throw httpError(400, 'Informe o título da aula extra.');
+  campos.entrada = horaValida(corpo.entrada, 'Entrada');
+  campos.saida = corpo.saida ? horaValida(corpo.saida, 'Saída') : null;
+  if (campos.saida && campos.saida <= campos.entrada) throw httpError(400, 'A saída precisa ser depois da entrada.');
+  campos.observacao = textoOpcional(corpo.observacao, 300, 'Observação');
+  return campos;
+}
+
+function uuidDoCorpo(valor, campo) {
+  if (!UUID.test(String(valor || ''))) throw httpError(400, `${campo} inválido.`);
+  return String(valor);
+}
+
+exports.criarPontoGestao = async (req, res) => {
+  const registro = registroDoCorpo(req.body || {}, { comProfessor: true });
+  const { userId, ...resto } = registro;
+  await docente.criarPontosGestao([{ userId, ...resto }]);
+  return res.status(201).json({ ok: true });
+};
+
+// Edição de um registro: todos os campos são regravados (inclusive professor não muda aqui).
+exports.editarPontoGestao = async (req, res) => {
+  const pontoId = uuidOu404(req.params.pontoId);
+  const campos = registroDoCorpo(req.body || {}, { comProfessor: false });
+  delete campos.userId;
+  const alterados = await docente.editarPontosGestao([pontoId], campos);
+  if (!alterados) throw httpError(404, 'Registro não encontrado.');
+  return res.json({ ok: true });
+};
+
+// Lote: aplica um campo a vários registros marcados, ou exclui os marcados.
+exports.lotePontoGestao = async (req, res) => {
+  const corpo = req.body || {};
+  const ids = Array.isArray(corpo.ids) ? corpo.ids.map((id) => uuidDoCorpo(id, 'Registro')) : [];
+  if (!ids.length) throw httpError(400, 'Selecione ao menos um registro.');
+  if (ids.length > 500) throw httpError(400, 'Edite no máximo 500 registros por vez.');
+
+  if (corpo.acao === 'excluir') {
+    return res.json({ alterados: await docente.excluirPontosGestao(ids) });
+  }
+  if (corpo.acao !== 'editar') throw httpError(400, 'Ação inválida.');
+
+  const campos = {};
+  if (corpo.turmaId !== undefined) campos.turmaId = corpo.turmaId ? uuidDoCorpo(corpo.turmaId, 'Turma') : null;
+  if (corpo.tipo !== undefined) {
+    if (!PONTO_TIPOS.includes(corpo.tipo)) throw httpError(400, 'Tipo deve ser aula ou extra.');
+    campos.tipo = corpo.tipo;
+  }
+  if (corpo.observacao) campos.observacao = textoOpcional(corpo.observacao, 300, 'Observação');
+  if (!Object.keys(campos).length) throw httpError(400, 'Escolha o que alterar nos registros selecionados.');
+  return res.json({ alterados: await docente.editarPontosGestao(ids, campos) });
+};
+
+exports.excluirPontoGestao = async (req, res) => {
+  const pontoId = uuidOu404(req.params.pontoId);
+  if (!(await docente.excluirPontosGestao([pontoId]))) throw httpError(404, 'Registro não encontrado.');
+  return res.json({ ok: true });
+};
+
+// Importação: tudo ou nada. Erros voltam com a lista de linhas para corrigir a planilha.
+exports.importarPontoGestao = async (req, res) => {
+  try {
+    res.json(await pontoGestao.importarPlanilhaPonto(String((req.body || {}).csv || ''), docente));
+  } catch (erro) {
+    if (erro.detalhes) return res.status(400).json({ message: erro.message, erros: erro.detalhes });
+    throw erro;
+  }
+};
+
+exports.modeloPontoGestao = async (req, res) => {
+  const cabecalho = pontoGestao.COLUNAS.join(',');
+  const exemplo = 'Ana Souza,Turma A,02/03/2026,31/03/2026,seg;qua,08:00,10:00,aula,,';
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', 'attachment; filename="modelo-ponto-professores.csv"');
+  res.send(`\uFEFF${cabecalho}\r\n${exemplo}\r\n`);
 };
 
 // Campo de CSV: aspas quando há separador, aspas ou quebra de linha.
