@@ -89,6 +89,14 @@ async function professoresDaTurma(turmaId) {
   return rows;
 }
 
+// Quem bate ponto: professores e monitores (a gestão acompanha os dois juntos).
+async function listarResponsaveisPonto() {
+  const { rows } = await query(
+    `select id, name, role as papel from users where role in ('teacher', 'monitor') and active = true order by name`
+  );
+  return rows;
+}
+
 async function listarProfessores() {
   const { rows } = await query(
     `select id, name from users where role = 'teacher' and active = true order by name`
@@ -704,7 +712,7 @@ async function listarPontoGestao({ professorId, de, ate }) {
 async function buscarProfessorPorNomeOuEmail(valor) {
   const { rows } = await query(
     `select id, name from users
-      where role = 'teacher' and active = true
+      where role in ('teacher', 'monitor') and active = true
         and (lower(email) = lower($1) or lower(name) = lower($1))
       limit 2`,
     [String(valor || '').trim()]
@@ -822,6 +830,7 @@ module.exports = {
   todasAsTurmas,
   professoresDaTurma,
   listarProfessores,
+  listarResponsaveisPonto,
   definirProfessoresTurma,
   cronogramaDaTurmaComoAluno,
   aulasQueMinistra,

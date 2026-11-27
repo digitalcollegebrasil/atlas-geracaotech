@@ -3,7 +3,7 @@ const { PALAVRAS_PADRAO } = require('../services/moderacao');
 
 // Espaços do mural: turma ou grupo de curso. Quem é da equipe (administração, atendente e gestão) vê todos.
 // Aluno e professor veem só os seus. Matrícula suspensa (expulsão) tira o acesso ao espaço.
-const EQUIPE_GLOBAL = ['admin', 'atendente', 'gestao', 'editor'];
+const EQUIPE_GLOBAL = ['admin', 'atendente', 'gestao', 'editor', 'monitor'];
 
 const SEM_SUSPENSAO = (cursoExpr) => `not exists (
   select 1 from enrollments e where e.course_id = ${cursoExpr} and e.user_id = $1 and e.status = 'suspended')`;

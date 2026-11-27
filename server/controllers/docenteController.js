@@ -417,7 +417,7 @@ exports.gestaoPonto = async (req, res) => {
   const professorId = req.query.professorId ? uuidOu404(req.query.professorId) : null;
   const registros = await docente.listarPontoGestao({ professorId, de, ate });
   const turmas = (await docente.todasAsTurmas()).map((t) => ({ id: t.id, nome: t.nome }));
-  return res.json({ de, ate, registros, professores: await docente.listarProfessores(), turmas });
+  return res.json({ de, ate, registros, professores: await docente.listarResponsaveisPonto(), turmas });
 };
 
 // ---------- Gestão do ponto: incluir, editar (um ou vários), excluir e importar planilha ----------

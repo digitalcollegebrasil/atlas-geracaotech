@@ -31,7 +31,7 @@ function pendingModules(view, entry) {
 // Visão de quem não é aluno. Professor vê os cursos que ministra; gestão, editor, admin e atendente veem
 // todos os cursos, sem precisar estar matriculado.
 async function visaoEquipe(user) {
-  const todos = ['admin', 'gestao', 'editor', 'atendente'].includes(user.role);
+  const todos = ['admin', 'gestao', 'editor', 'atendente', 'monitor'].includes(user.role);
   const { rows } = await query(
     `select c.id, c.title, c.slug,
             (select count(*)::int from turmas t where t.curso_id = c.id and t.ativa) as turmas,
