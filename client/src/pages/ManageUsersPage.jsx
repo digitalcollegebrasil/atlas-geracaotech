@@ -339,6 +339,7 @@ export default function ManageUsersPage() {
                 <option value="teacher">Professor</option>
                 <option value="admin">Administrador</option>
                 <option value="atendente">Atendente</option>
+                <option value="monitor">Monitor(a)</option>
                 <option value="gestao">Gestão</option>
                 <option value="editor">Editor</option>
               </select>
