@@ -246,7 +246,7 @@
 
 /* Tabela compacta: fonte e espaçamentos menores, situação e botões quebram dentro da própria coluna para caber */
 .users-table.acompanhamento-table {
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 .users-table.acompanhamento-table th,
 .users-table.acompanhamento-table td {
@@ -262,7 +262,9 @@
   padding-bottom: 0.2rem;
 }
 .acompanhamento-table td .ghost-button,
-.acompanhamento-table td .primary-button {
+.acompanhamento-table td .primary-button,
+.acompanhamento-table td .danger-button {
+  font-size: 0.76rem;
   white-space: normal;
   text-align: center;
   line-height: 1.2;

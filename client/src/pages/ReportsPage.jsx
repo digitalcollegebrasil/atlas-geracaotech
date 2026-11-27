@@ -464,7 +464,6 @@ export default function ReportsPage() {
                         </button>
                       </th>
                     ))}
-                    <th>Conta</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
