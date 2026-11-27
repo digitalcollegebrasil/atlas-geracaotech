@@ -75,7 +75,8 @@ exports.abrirAnexo = async (req, res) => {
   if (!Number.isInteger(mensagemId)) throw httpError(404, 'Anexo não encontrado.');
   const anexo = await atendimento.anexoDaMensagem(mensagemId);
   if (!anexo) throw httpError(404, 'Anexo não encontrado.');
-  const equipe = req.user.role === 'admin' || req.user.role === 'atendente';
+  // Equipe (atendente e monitor) e administração podem abrir anexos das conversas que atendem.
+  const equipe = ['admin', 'atendente', 'monitor'].includes(req.user.role);
   if (!equipe && anexo.user_id !== req.user.id) throw httpError(404, 'Anexo não encontrado.');
   res.set('Content-Type', anexo.anexo_tipo);
   res.set('Content-Disposition', `inline; filename="${anexo.anexo_nome.replace(/"/g, '')}"`);
