@@ -2,6 +2,7 @@ const express = require('express');
 const integrationAuth = require('../middleware/integrationAuth');
 const rateLimit = require('../middleware/rateLimit');
 const integracao = require('../controllers/integracaoController');
+const gt5 = require('../controllers/gt5Controller');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -23,6 +24,8 @@ router.use(rateLimit({ windowMs: 60_000, max: 120 }));
 router.get('/ping', asyncHandler(integracao.ping));
 router.post('/matriculas', asyncHandler(integracao.receberMatricula));
 router.post('/turmas', asyncHandler(integracao.receberTurma));
+// GT 5.0: lote de turmas em JSON, com a mesma regra da planilha (tudo ou nada).
+router.post('/gt5/turmas', asyncHandler(gt5.receberTurmasIntegracao));
 router.post('/aulas', asyncHandler(integracao.receberAulas));
 router.post('/lembretes-prazo', asyncHandler(integracao.lembretesPrazo));
 
