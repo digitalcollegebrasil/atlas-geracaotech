@@ -35,6 +35,7 @@ import CronogramasPage from './pages/CronogramasPage';
 import JustificativasPage from './pages/JustificativasPage';
 import RelatoriosGestaoPage from './pages/RelatoriosGestaoPage';
 import AtendimentoAlunoPage from './pages/AtendimentoAlunoPage';
+import MonitoriaCodicePage from './pages/MonitoriaCodicePage';
 import AtendimentoGestaoPage from './pages/AtendimentoGestaoPage';
 
 const TEACHING_ROLES = ['admin', 'teacher'];
@@ -50,6 +51,11 @@ function GestaoIndex() {
 function AtendimentoRota() {
   const { isGestao } = useAuth();
   return isGestao ? <AtendimentoNumerosPage /> : <AtendimentoGestaoPage />;
+}
+
+// Monitoria: conversas técnicas. Monitor e administração; o atendente encaminha pelo atendimento.
+function MonitoriaRota() {
+  return <AtendimentoGestaoPage canal="monitoria" />;
 }
 
 export default function App() {
@@ -233,6 +239,22 @@ export default function App() {
           element={
             <ProtectedRoute roles={['student']}>
               <AtendimentoAlunoPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/monitoria"
+          element={
+            <ProtectedRoute roles={['monitor', 'admin']}>
+              <MonitoriaRota />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/monitoria/codice"
+          element={
+            <ProtectedRoute roles={['monitor', 'admin']}>
+              <MonitoriaCodicePage />
             </ProtectedRoute>
           }
         />

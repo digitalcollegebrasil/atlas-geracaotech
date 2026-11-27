@@ -36,6 +36,32 @@ function textoValido(valor) {
   return texto;
 }
 
+// Canais de conversa: atendimento geral e monitoria (assuntos técnicos).
+const CANAIS = ['atendimento', 'monitoria'];
+
+// Canal pedido pelo aluno (na consulta ou no corpo). Padrão: atendimento geral.
+function canalDoAluno(req) {
+  const canal = String(req.query?.canal || req.body?.canal || 'atendimento');
+  if (!CANAIS.includes(canal)) throw httpError(400, 'Canal inválido.');
+  return canal;
+}
+
+// Equipe atende só o próprio canal: a monitoria fala com o monitor; o atendimento, com o atendente.
+// A administração acompanha os dois.
+function podeAtenderCanal(user, canal) {
+  if (user.role === 'monitor') return canal === 'monitoria';
+  if (user.role === 'atendente') return canal === 'atendimento';
+  return true;
+}
+
+// Conversa da equipe, só se o canal dela for o que quem pede atende.
+async function sessaoDaEquipe(req) {
+  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
+  const sessao = await atendimento.detalheSessao(req.params.id);
+  if (!sessao || !podeAtenderCanal(req.user, sessao.canal)) throw httpError(404, 'Atendimento não encontrado.');
+  return sessao;
+}
+
 function desdeDe(query) {
   const n = Number(query.desde || 0);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -59,16 +85,14 @@ exports.abrirAnexo = async (req, res) => {
 
 exports.anexoAluno = async (req, res) => {
   const anexo = anexoValido(req.body);
-  const sessao = await atendimento.sessaoDoAluno(req.user.id);
+  const sessao = await atendimento.sessaoDoAluno(req.user.id, canalDoAluno(req));
   const mensagem = await atendimento.anexoDoAluno(sessao, anexo);
   return res.status(201).json({ mensagem });
 };
 
 exports.anexoEquipe = async (req, res) => {
-  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
   const anexo = anexoValido(req.body);
-  const sessao = await atendimento.detalheSessao(req.params.id);
-  if (!sessao) throw httpError(404, 'Atendimento não encontrado.');
+  const sessao = await sessaoDaEquipe(req);
   if (sessao.status === 'finalizado') throw httpError(409, 'Este atendimento já foi finalizado.');
   const mensagem = await atendimento.anexoDaEquipe(req.params.id, req.user.id, anexo);
   return res.status(201).json({ mensagem });
@@ -78,12 +102,13 @@ exports.anexoEquipe = async (req, res) => {
 
 // Sessão do aluno com mensagens novas (?desde=id) e os assuntos prontos do robô.
 exports.sessaoAluno = async (req, res) => {
-  const sessao = await atendimento.sessaoDoAluno(req.user.id);
+  const canal = canalDoAluno(req);
+  const sessao = await atendimento.sessaoDoAluno(req.user.id, canal);
   const mensagens = await atendimento.mensagensDepois(sessao.id, desdeDe(req.query));
-  const topicos = sessao.status === 'bot' ? (await atendimento.faqAtivas()).map((f) => ({ id: f.id, titulo: f.titulo })) : [];
+  const topicos = sessao.status === 'bot' ? (await atendimento.faqAtivas(canal)).map((f) => ({ id: f.id, titulo: f.titulo })) : [];
   await query('update atendimento_sessoes set nao_lidas_aluno = 0 where id = $1', [sessao.id]);
   return res.json({
-    sessao: { id: sessao.id, status: sessao.status, atendente: sessao.atendente_id ? 'Equipe Geração Tech' : null },
+    sessao: { id: sessao.id, status: sessao.status, canal, atendente: sessao.atendente_id ? (canal === 'monitoria' ? 'Monitoria Geração Tech' : 'Equipe Geração Tech') : null },
     mensagens,
     topicos
   });
@@ -91,7 +116,7 @@ exports.sessaoAluno = async (req, res) => {
 
 exports.enviarMensagemAluno = async (req, res) => {
   const texto = textoValido(req.body?.texto);
-  const sessao = await atendimento.sessaoDoAluno(req.user.id);
+  const sessao = await atendimento.sessaoDoAluno(req.user.id, canalDoAluno(req));
   await atendimento.enviarMensagemAluno(sessao, texto);
   return res.status(201).json({ ok: true });
 };
@@ -99,7 +124,7 @@ exports.enviarMensagemAluno = async (req, res) => {
 exports.escolherAssunto = async (req, res) => {
   const faqId = String(req.body?.faqId || '');
   if (!UUID.test(faqId)) throw httpError(400, 'Assunto inválido.');
-  const sessao = await atendimento.sessaoDoAluno(req.user.id);
+  const sessao = await atendimento.sessaoDoAluno(req.user.id, canalDoAluno(req));
   const resultado = await atendimento.escolherAssunto(sessao, faqId);
   if (resultado === 'nao_encontrado') throw httpError(404, 'Assunto não encontrado.');
   if (resultado === 'com_equipe') throw httpError(409, 'Sua conversa já está com a equipe. Escreva sua mensagem por aqui.');
@@ -107,7 +132,7 @@ exports.escolherAssunto = async (req, res) => {
 };
 
 exports.falarComEquipe = async (req, res) => {
-  const sessao = await atendimento.sessaoDoAluno(req.user.id);
+  const sessao = await atendimento.sessaoDoAluno(req.user.id, canalDoAluno(req));
   const resultado = await atendimento.pedirEquipe(sessao);
   if (resultado === 'ja_transferida') throw httpError(409, 'Sua conversa já foi encaminhada para a equipe.');
   return res.status(201).json({ ok: true });
@@ -117,14 +142,21 @@ exports.falarComEquipe = async (req, res) => {
 
 exports.resumoGestao = async (req, res) => res.json({ resumo: await atendimento.resumoGestao() });
 
+// Monitor vê só a monitoria; atendente, o atendimento; administração escolhe o canal.
+function canalDaEquipe(req) {
+  if (req.user.role === 'monitor') return 'monitoria';
+  if (req.user.role === 'atendente') return 'atendimento';
+  const canal = String(req.query?.canal || 'atendimento');
+  if (!CANAIS.includes(canal)) throw httpError(400, 'Canal inválido.');
+  return canal;
+}
+
 exports.listarSessoes = async (req, res) => {
-  return res.json({ sessoes: await atendimento.listarSessoes(String(req.query.filtro || 'abertos')) });
+  return res.json({ sessoes: await atendimento.listarSessoes(String(req.query.filtro || 'abertos'), canalDaEquipe(req)) });
 };
 
 exports.detalheSessao = async (req, res) => {
-  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
-  const sessao = await atendimento.detalheSessao(req.params.id);
-  if (!sessao) throw httpError(404, 'Atendimento não encontrado.');
+  const sessao = await sessaoDaEquipe(req);
   const mensagens = await atendimento.mensagensDepois(sessao.id, desdeDe(req.query), 500);
   // Quem só acompanha (administração) não zera as mensagens novas da fila do atendente.
   if (!desdeDe(req.query) && req.user.role === 'atendente') await atendimento.marcarLidaPelaGestao(sessao.id);
@@ -132,7 +164,7 @@ exports.detalheSessao = async (req, res) => {
 };
 
 exports.responder = async (req, res) => {
-  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
+  await sessaoDaEquipe(req);
   const texto = textoValido(req.body?.texto);
   const resultado = await atendimento.responderComoEquipe(req.params.id, req.user.id, texto);
   if (resultado === 'nao_encontrada') throw httpError(404, 'Atendimento não encontrado.');
@@ -141,17 +173,27 @@ exports.responder = async (req, res) => {
 };
 
 exports.finalizar = async (req, res) => {
-  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
+  await sessaoDaEquipe(req);
   const ok = await atendimento.finalizarSessao(req.params.id);
   if (!ok) throw httpError(409, 'Este atendimento já foi finalizado ou não existe.');
   return res.json({ status: 'finalizado' });
 };
 
 exports.arquivar = async (req, res) => {
-  if (!UUID.test(req.params.id)) throw httpError(404, 'Atendimento não encontrado.');
+  await sessaoDaEquipe(req);
   const ok = await atendimento.arquivarSessao(req.params.id);
   if (!ok) throw httpError(409, 'Só é possível arquivar um atendimento já finalizado.');
   return res.json({ status: 'arquivado' });
+};
+
+// Encaminha a conversa técnica do atendimento para a monitoria.
+exports.encaminharMonitoria = async (req, res) => {
+  const sessao = await sessaoDaEquipe(req);
+  const resultado = await atendimento.encaminharParaMonitoria(sessao);
+  if (resultado === 'finalizada') throw httpError(409, 'Este atendimento já foi finalizado.');
+  if (resultado === 'ja_monitoria') throw httpError(409, 'Esta conversa já está com a monitoria.');
+  if (resultado === 'ja_existe') throw httpError(409, 'O aluno já tem uma conversa aberta com a monitoria.');
+  return res.json({ status: 'monitoria' });
 };
 
 // ── Perguntas frequentes (administração) ───────────────────────────────

@@ -34,8 +34,11 @@ function horaCurta(valor) {
     : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export default function AtendimentoGestaoPage() {
-  const { isAdmin, isAtendente } = useAuth();
+export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
+  const { isAdmin, isAtendente, isMonitor } = useAuth();
+  // Quem responde: atendente no atendimento; monitor na monitoria. A administração só acompanha.
+  const podeResponder = isAtendente || isMonitor;
+  const tituloCanal = canal === 'monitoria' ? 'Monitoria' : 'Atendimento';
   const [aba, setAba] = useState('conversas');
   const [filtro, setFiltro] = useState('abertos');
   const [sessoes, setSessoes] = useState([]);
@@ -51,7 +54,7 @@ export default function AtendimentoGestaoPage() {
   const carregarFila = async () => {
     try {
       const [fila, numeros] = await Promise.all([
-        api.get('/atendimento/gestao/sessoes', { params: { filtro } }),
+        api.get('/atendimento/gestao/sessoes', { params: { filtro, canal } }),
         api.get('/atendimento/gestao/resumo')
       ]);
       setSessoes(fila.data.sessoes);
@@ -163,6 +166,19 @@ export default function AtendimentoGestaoPage() {
     }
   };
 
+  // Dúvida técnica no atendimento: a conversa passa para a fila da monitoria.
+  const encaminharMonitoria = async () => {
+    if (!selecionada || !window.confirm(`Encaminhar a conversa de ${selecionada.aluno?.nome} para a monitoria?`)) return;
+    try {
+      await api.post(`/atendimento/gestao/sessoes/${selecionada.id}/encaminhar-monitoria`);
+      setFeedback({ type: 'success', text: 'Conversa encaminhada para a monitoria.' });
+      setSelecionada(null);
+      carregarFila();
+    } catch (error) {
+      setFeedback({ type: 'error', text: errorText(error) });
+    }
+  };
+
   const totalAguardando = useMemo(() => sessoes.filter((s) => s.status === 'aberto' && s.naoLidasGestao > 0).length, [sessoes]);
   const finalizado = selecionada?.status === 'finalizado';
 
@@ -173,18 +189,20 @@ export default function AtendimentoGestaoPage() {
         <section className="atend-head">
           <div>
             <span className="eyebrow">Gestão</span>
-            <h1>Atendimento</h1>
+            <h1>{tituloCanal}</h1>
             <p>
-              {isAtendente
-                ? 'Conversas dos alunos com o assistente e com a equipe. Responda por aqui e encerre quando resolver.'
-                : 'Acompanhamento do atendimento: fila, conversas e números. Quem responde aos alunos é o atendente.'}
+              {podeResponder
+                ? (canal === 'monitoria'
+                  ? 'Dúvidas técnicas dos alunos. Responda por aqui e encerre quando resolver.'
+                  : 'Conversas dos alunos com o assistente e com a equipe. Responda por aqui e encerre quando resolver.')
+                : 'Acompanhamento: fila, conversas e números. Quem responde aos alunos é a equipe responsável.'}
             </p>
           </div>
           <div className="atend-abas" role="tablist">
             <button type="button" role="tab" aria-selected={aba === 'conversas'} className={aba === 'conversas' ? 'is-active' : ''} onClick={() => setAba('conversas')}>
               Conversas {totalAguardando > 0 && <span className="atend-badge">{totalAguardando}</span>}
             </button>
-            {isAdmin && (
+            {isAdmin && canal === 'atendimento' && (
               <button type="button" role="tab" aria-selected={aba === 'faq'} className={aba === 'faq' ? 'is-active' : ''} onClick={() => setAba('faq')}>
                 Perguntas do robô
               </button>
@@ -254,10 +272,13 @@ export default function AtendimentoGestaoPage() {
                     </div>
                     <div className="atend-conversa-acoes">
                       <span className={`atend-status atend-status-${selecionada.status}`}>{STATUS_TEXT[selecionada.status]}</span>
-                      {!finalizado && isAtendente && (
+                      {!finalizado && isAtendente && canal === 'atendimento' && (
+                        <button type="button" className="ghost-button small" onClick={encaminharMonitoria}>Encaminhar para monitoria</button>
+                      )}
+                      {!finalizado && podeResponder && (
                         <button type="button" className="ghost-button small" onClick={finalizar}>Finalizar atendimento</button>
                       )}
-                      {finalizado && isAtendente && filtro !== 'arquivados' && (
+                      {finalizado && podeResponder && filtro !== 'arquivados' && (
                         <button type="button" className="ghost-button small" onClick={arquivar}>Arquivar conversa</button>
                       )}
                     </div>
@@ -282,8 +303,8 @@ export default function AtendimentoGestaoPage() {
 
                   {finalizado ? (
                     <p className="atend-rodape muted">Atendimento encerrado. Se o aluno escrever de novo, uma nova conversa é aberta.</p>
-                  ) : !isAtendente ? (
-                    <p className="atend-rodape muted">Modo acompanhamento: esta conversa é respondida pelo atendente.</p>
+                  ) : !podeResponder ? (
+                    <p className="atend-rodape muted">Modo acompanhamento: esta conversa é respondida pela equipe.</p>
                   ) : (
                     <form className="atend-entrada" onSubmit={enviarResposta}>
                       <div className="atend-entrada-linha">
