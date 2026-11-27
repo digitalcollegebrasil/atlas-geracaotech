@@ -1118,9 +1118,16 @@ textarea:disabled {
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
+.users-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
 .users-filters {
   display: grid;
-  grid-template-columns: 2fr repeat(4, minmax(140px, 1fr)) auto;
+  grid-template-columns: 2fr repeat(3, minmax(120px, 1fr)) auto;
   gap: 10px;
   align-items: end;
   margin-bottom: 16px;
@@ -1239,14 +1246,32 @@ textarea:disabled {
 /* ---------- Usuários: tabela compacta, paginação e edição ---------- */
 .users-panel {
   padding: 16px;
+  min-width: 0;
 }
+/* Tabela cabe na largura da página: colunas fixas, texto cortado com reticências, sem rolagem lateral. */
 .users-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
+  width: 100%;
 }
 .users-table {
-  width: min(100%, 1200px);
+  width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9rem;
+}
+.users-table .col-name { width: 30%; }
+.users-table .col-cpf { width: 13%; }
+.users-table .col-role { width: 15%; }
+.users-table .col-status { width: 15%; }
+.users-table .col-courses { width: 17%; }
+.users-table .col-groups { width: 9%; }
+.users-table .col-actions { width: 150px; }
+.users-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.users-table .users-status {
+  white-space: normal;
 }
 .users-table th,
 .users-table td {
@@ -1286,12 +1311,16 @@ textarea:disabled {
   opacity: 0.6;
 }
 .users-table .col-actions {
-  width: 1%;
   white-space: nowrap;
 }
 .users-table .role-select {
+  width: 100%;
+  min-width: 0;
   padding: 4px 6px;
   border-radius: 6px;
+}
+@media (max-width: 1180px) {
+  .users-table .col-groups { display: none; }
 }
 .row-actions {
   display: flex;
