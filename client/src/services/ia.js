@@ -24,3 +24,14 @@ export async function perguntarTutor({ pergunta, aulaId, historico = [] }) {
   const { data } = await api.post('/ia/tutor', { pergunta, aulaId, historico });
   return data.resposta;
 }
+
+// Aparência do tutor: leitura para qualquer usuário logado; gravação só pela administração.
+export async function buscarAparenciaTutor() {
+  const { data } = await api.get('/ia/aparencia');
+  return data;
+}
+
+export async function salvarAparenciaTutor(dados) {
+  const { data } = await api.put('/ia/aparencia', dados);
+  return data;
+}

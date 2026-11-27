@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { buscarEstadoIa, perguntarTutor } from '../../services/ia';
+import { buscarEstadoIa, buscarAparenciaTutor, perguntarTutor } from '../../services/ia';
 import { errorText } from '../manage/shared';
+import { estiloTutor, carregarFonteTutor, MASCOTE_PADRAO } from './tutorTema.js';
 
-const MASCOTE = '/brand/atlas-mascote.gif';
 const TROCAS_NO_HISTORICO = 6; // últimas 6 perguntas e respostas são enviadas como contexto
 
 // Negrito, itálico e `código` viram elementos de React (sem HTML cru).
@@ -76,6 +76,7 @@ export default function TutorIa({ lesson }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
   const fimRef = useRef(null);
+  const [aparencia, setAparencia] = useState(null);
 
   useEffect(() => {
     let ativo = true;
@@ -127,13 +128,24 @@ export default function TutorIa({ lesson }) {
     }
   }
 
+  // Aparência configurada pela administração. Se falhar, o tutor usa o padrão do Atlas.
+  useEffect(() => {
+    buscarAparenciaTutor().then(setAparencia).catch(() => setAparencia(null));
+  }, []);
+  useEffect(() => {
+    carregarFonteTutor(aparencia?.fonte);
+  }, [aparencia?.fonte]);
+  const mascote = aparencia?.mascote || MASCOTE_PADRAO;
+  const nomeTutor = aparencia?.nome || 'Atlas';
+  const estilo = estiloTutor(aparencia);
+
   if (!aberto) {
     return (
-      <div className="tutor-ia">
+      <div className="tutor-ia" style={estilo}>
         <button type="button" className="tutor-ia-convite" onClick={() => setAberto(true)}>
-          <img src={MASCOTE} alt="" className="tutor-ia-mascote" width="96" height="64" />
+          <img src={mascote} alt="" className="tutor-ia-mascote" width="96" height="64" />
           <span className="tutor-ia-texto">
-            <strong>Atlas</strong>
+            <strong>{nomeTutor}</strong>
             <small>Tutor de IA do Geração Tech</small>
           </span>
           <span className="tutor-ia-chamada">Tirar dúvida com o Atlas</span>
@@ -143,11 +155,11 @@ export default function TutorIa({ lesson }) {
   }
 
   return (
-    <div className="tutor-ia is-open">
+    <div className="tutor-ia is-open" style={estilo}>
       <header className="tutor-ia-cabecalho">
-        <img src={MASCOTE} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
+        <img src={mascote} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
         <span className="tutor-ia-texto">
-          <strong>Atlas</strong>
+          <strong>{nomeTutor}</strong>
           <small>Tire sua dúvida sobre esta aula</small>
         </span>
         {conversa.length > 0 && (
@@ -167,7 +179,7 @@ export default function TutorIa({ lesson }) {
               <div key={i} className="tutor-ia-balao-pergunta">{m.texto}</div>
             ) : (
               <div key={i} className="tutor-ia-balao-resposta">
-                <img src={MASCOTE} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
+                <img src={mascote} alt="" className="tutor-ia-mascote pequeno" width="56" height="37" />
                 <div className="tutor-ia-resposta">{renderizarResposta(m.texto)}</div>
               </div>
             )

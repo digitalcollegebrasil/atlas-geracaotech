@@ -25,7 +25,7 @@ function TesteIa({ disponivel }) {
   }
 
   return (
-    <form className="ia-admin-card" onSubmit={testar}>
+    <form className="surface-card ia-admin-card" onSubmit={testar}>
       <label>
         Pergunta de teste
         <textarea value={pergunta} onChange={(e) => setPergunta(e.target.value)} rows={3} maxLength={2000} />
@@ -67,7 +67,7 @@ export default function IaAdminSwitch() {
 
   return (
     <>
-      <section className="ia-admin-card">
+      <section className="surface-card ia-admin-card">
         {!estado ? (
           <p>Carregando…</p>
         ) : (
