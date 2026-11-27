@@ -1,9 +1,13 @@
-// Geração Tech 5.0: cadastro de formações, polos, lideranças e vínculo do aluno. Só administração.
-const { query, withTransaction } = require('../db/pool');
+// Geração Tech 5.0: formações, vagas, polos, lideranças, turmas e vínculo do aluno. Só administração.
+// Inscrições e matrículas vêm do site do GT; aqui a gestão edita a capacidade e organiza o estudo.
+const { query, withTransaction, getPool } = require('../db/pool');
 const httpError = require('../utils/httpError');
-const { uuid, uuidOpcional, parsePolo, parseLideranca, parseVinculo, vincularAluno } = require('../services/gt5');
+const gt5 = require('../services/gt5');
+const { importarTurmas } = require('../services/gt5Turmas');
 
-// Formações da edição 5.0, com carga, duração e vagas por modalidade e local.
+const { uuid, uuidOpcional, parsePolo, parseLideranca, parseVinculo, parseFormacao, montarVagas, ocupacaoPorLocal, vincularAluno } = gt5;
+
+// Formações da edição 5.0, com carga, duração, vagas e ocupação por local.
 exports.listarFormacoes = async (req, res) => {
   const { rows } = await query(
     `select c.id, c.slug, c.title, c.summary, c.visible, c.self_enrolment,
@@ -11,7 +15,31 @@ exports.listarFormacoes = async (req, res) => {
      from formacoes_edicao f join courses c on c.id = f.course_id
      order by c.title`
   );
-  res.json({ formacoes: rows });
+  const formacoes = [];
+  for (const f of rows) {
+    const ocupadas = await ocupacaoPorLocal(getPool(), f.id);
+    formacoes.push({
+      id: f.id, slug: f.slug, title: f.title, summary: f.summary, visible: f.visible, self_enrolment: f.self_enrolment,
+      carga_horaria: f.carga_horaria, duracao_semanas: f.duracao_semanas,
+      vagas: montarVagas(f, ocupadas),
+    });
+  }
+  res.json({ formacoes });
+};
+
+// Edita carga, duração e vagas. Vagas por local precisam somar o total.
+exports.atualizarFormacao = async (req, res) => {
+  const id = uuid(req.params.id, 'Formação');
+  const { rows } = await query('select * from formacoes_edicao where course_id = $1', [id]);
+  if (!rows[0]) throw httpError(404, 'Formação não encontrada.');
+  const alteracoes = parseFormacao(req.body, rows[0]);
+  const campos = Object.keys(alteracoes);
+  if (!campos.length) throw httpError(400, 'Nada para atualizar.');
+  await query(
+    `update formacoes_edicao set ${campos.map((c, i) => `${c} = $${i + 2}`).join(', ')} where course_id = $1`,
+    [id, ...campos.map((c) => alteracoes[c])]
+  );
+  res.json({ atualizado: true, campos });
 };
 
 // Polos: locais presenciais do interior (tipo 'polo' em sedes).
@@ -89,6 +117,17 @@ exports.atualizarLideranca = async (req, res) => {
   );
   if (!rows[0]) throw httpError(404, 'Liderança não encontrada.');
   res.json({ lideranca: rows[0] });
+};
+
+// Importa turmas por planilha (CSV no corpo: { "csv": "..." }). Se houver erro, nada é gravado.
+exports.importarTurmas = async (req, res) => {
+  try {
+    const resultado = await withTransaction((client) => importarTurmas(client, req.body?.csv));
+    res.json(resultado);
+  } catch (erro) {
+    if (erro.detalhes) return res.status(400).json({ message: erro.message, erros: erro.detalhes });
+    throw erro;
+  }
 };
 
 // Vínculo do aluno: modalidade, polo e turma, validados contra a formação e as vagas.

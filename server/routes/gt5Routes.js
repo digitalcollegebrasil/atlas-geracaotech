@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(requireRole('admin'));
 
 router.get('/formacoes', asyncHandler(gt5.listarFormacoes));
+router.patch('/formacoes/:id', asyncHandler(gt5.atualizarFormacao));
 
 router.get('/polos', asyncHandler(gt5.listarPolos));
 router.post('/polos', asyncHandler(gt5.criarPolo));
@@ -17,6 +18,8 @@ router.patch('/polos/:id', asyncHandler(gt5.atualizarPolo));
 router.get('/liderancas', asyncHandler(gt5.listarLiderancas));
 router.post('/liderancas', asyncHandler(gt5.criarLideranca));
 router.patch('/liderancas/:id', asyncHandler(gt5.atualizarLideranca));
+
+router.post('/turmas/importar', asyncHandler(gt5.importarTurmas));
 
 router.put('/matriculas/:id/vinculo', asyncHandler(gt5.vincularMatricula));
 

@@ -1,10 +1,12 @@
-// Geração Tech 5.0: validações e vínculo do aluno (formação, modalidade, polo e turma).
-// As regras vêm de docs/GT5-DIRETRIZES.md, seções 2 e 3. Funções puras ficam separadas do banco para teste.
+// Geração Tech 5.0: validações, controle de vagas e vínculo do aluno (formação, modalidade, polo e turma).
+// As regras vêm de docs/GT5-DIRETRIZES.md, seções 2 e 3. Inscrição e matrícula vêm do site do GT.
+// Funções puras ficam separadas do banco para teste.
 const httpError = require('../utils/httpError');
 const { text, phone, uf } = require('./validators');
 const { setTurmaDoAluno } = require('./turmaSync');
 
 const MODALIDADES = ['Online', 'Presencial'];
+const LOCAIS = ['online', 'fortaleza', 'interior'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // IDs são UUID. Um valor fora do formato vira 400, e não erro de banco.
@@ -15,6 +17,72 @@ function uuid(value, field) {
 function uuidOpcional(value, field) {
   if (value === undefined || value === null || value === '') return null;
   return uuid(value, field);
+}
+
+function inteiro(value, { field, min }) {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (!Number.isInteger(n) || n < min) throw httpError(400, `${field} deve ser um número inteiro maior ou igual a ${min}.`);
+  return n;
+}
+
+// Edição da formação: carga e duração podem ficar vazias; as vagas são sempre números inteiros.
+function parseFormacao(body, atual) {
+  if (!body || typeof body !== 'object') throw httpError(400, 'Dados da formação inválidos.');
+  const out = {};
+  if (body.carga_horaria !== undefined) {
+    out.carga_horaria = body.carga_horaria === null || body.carga_horaria === '' ? null : inteiro(body.carga_horaria, { field: 'Carga horária', min: 1 });
+  }
+  if (body.duracao_semanas !== undefined) {
+    out.duracao_semanas = body.duracao_semanas === null || body.duracao_semanas === '' ? null : inteiro(body.duracao_semanas, { field: 'Duração em semanas', min: 1 });
+  }
+  for (const campo of ['vagas_total', 'vagas_online', 'vagas_fortaleza', 'vagas_interior']) {
+    if (body[campo] !== undefined) out[campo] = inteiro(body[campo], { field: campo.replace('_', ' '), min: campo === 'vagas_total' ? 1 : 0 });
+  }
+  const final = { ...atual, ...out };
+  validarVagas(final);
+  return out;
+}
+
+// Vagas por local têm que somar o total da formação.
+function validarVagas(v) {
+  if (v.vagas_online + v.vagas_fortaleza + v.vagas_interior !== v.vagas_total) {
+    throw httpError(400, 'A soma das vagas online, em Fortaleza e no interior precisa ser igual ao total.');
+  }
+}
+
+// Ocupação por local, a partir das matrículas sincronizadas do site (situação ativa).
+// Matrículas sem polo e presenciais são Fortaleza; com polo, interior.
+function montarVagas(formacao, ocupadas) {
+  const linha = (local, total) => {
+    const ocupados = ocupadas[local] || 0;
+    return { total, ocupadas: ocupados, disponiveis: total - ocupados };
+  };
+  return {
+    total: formacao.vagas_total,
+    online: linha('online', formacao.vagas_online),
+    fortaleza: linha('fortaleza', formacao.vagas_fortaleza),
+    interior: linha('interior', formacao.vagas_interior),
+  };
+}
+
+// Local de uma matrícula, conforme modalidade e polo.
+function localDe(modalidade, poloId) {
+  if (modalidade === 'Online') return 'online';
+  return poloId ? 'interior' : 'fortaleza';
+}
+
+// Matrículas ativas por local de uma formação. excluirMatriculaId tira o próprio aluno da conta.
+async function ocupacaoPorLocal(client, cursoId, excluirMatriculaId = null) {
+  const { rows } = await client.query(
+    `select
+       count(*) filter (where modalidade = 'Online') as online,
+       count(*) filter (where modalidade = 'Presencial' and sede_id is null) as fortaleza,
+       count(*) filter (where modalidade = 'Presencial' and sede_id is not null) as interior
+     from matriculas
+     where curso_id = $1 and situacao = 'ativo' and ($2::uuid is null or id <> $2::uuid)`,
+    [cursoId, excluirMatriculaId]
+  );
+  return { online: Number(rows[0].online), fortaleza: Number(rows[0].fortaleza), interior: Number(rows[0].interior) };
 }
 
 function parsePolo(body, { parcial = false } = {}) {
@@ -79,17 +147,19 @@ function validarTurma(turma, { cursoId, modalidade, poloId }) {
 
 // Vincula um aluno (matrícula já recebida do site) à modalidade, ao polo e à turma.
 // A formação não muda aqui: ela já vem da matrícula, e precisa ser a formação informada.
+// Se o aluno muda de local, o local de destino precisa ter vaga disponível.
 async function vincularAluno(client, matriculaId, vinculo) {
-  const { rows: mRows } = await client.query('select id, curso_id from matriculas where id = $1 for update', [matriculaId]);
+  const { rows: mRows } = await client.query('select id, curso_id, modalidade, sede_id from matriculas where id = $1 for update', [matriculaId]);
   const matricula = mRows[0];
   if (!matricula) throw httpError(404, 'Matrícula não encontrada.');
   if (matricula.curso_id !== vinculo.formacaoId) throw httpError(409, 'A matrícula é de outra formação.');
 
   const { rows: fRows } = await client.query(
-    'select course_id, vagas_online, vagas_fortaleza, vagas_interior from formacoes_edicao where course_id = $1',
+    'select course_id, vagas_total, vagas_online, vagas_fortaleza, vagas_interior from formacoes_edicao where course_id = $1',
     [vinculo.formacaoId]
   );
-  if (!fRows[0]) throw httpError(400, 'Esta formação não é da edição GT 5.0.');
+  const formacao = fRows[0];
+  if (!formacao) throw httpError(400, 'Esta formação não é da edição GT 5.0.');
 
   let poloId = null;
   if (vinculo.poloId) {
@@ -97,7 +167,15 @@ async function vincularAluno(client, matriculaId, vinculo) {
     if (!pRows[0]) throw httpError(400, 'Polo não encontrado ou inativo.');
     poloId = pRows[0].id;
   }
-  validarLocal(fRows[0], vinculo.modalidade, poloId);
+  validarLocal(formacao, vinculo.modalidade, poloId);
+
+  const destino = localDe(vinculo.modalidade, poloId);
+  const atual = localDe(matricula.modalidade, matricula.sede_id);
+  if (destino !== atual) {
+    const ocupadas = await ocupacaoPorLocal(client, vinculo.formacaoId, matriculaId);
+    const total = { online: formacao.vagas_online, fortaleza: formacao.vagas_fortaleza, interior: formacao.vagas_interior }[destino];
+    if (ocupadas[destino] >= total) throw httpError(409, 'Não há vagas disponíveis neste local.');
+  }
 
   if (vinculo.turmaId) {
     const { rows: tRows } = await client.query('select id, curso_id, modalidade, sede_id, ativa from turmas where id = $1', [vinculo.turmaId]);
@@ -112,4 +190,7 @@ async function vincularAluno(client, matriculaId, vinculo) {
   return { matriculaId, modalidade: vinculo.modalidade, poloId, turmaId: vinculo.turmaId };
 }
 
-module.exports = { uuid, uuidOpcional, parsePolo, parseLideranca, parseVinculo, validarLocal, validarTurma, vincularAluno };
+module.exports = {
+  LOCAIS, uuid, uuidOpcional, parseFormacao, validarVagas, montarVagas, localDe, ocupacaoPorLocal,
+  parsePolo, parseLideranca, parseVinculo, validarLocal, validarTurma, vincularAluno,
+};
