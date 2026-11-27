@@ -1,9 +1,25 @@
 import { useEffect, useState } from 'react';
 import { listarFormacoes, atualizarFormacao, atualizarConfiguracaoGt5 } from '../../services/gt5';
 import { errorText } from '../manage/shared';
-import { resumoVagas, vagasConferem } from './gt5Format';
+import { vagasConferem } from './gt5Format';
 
-// Uma linha de vagas. A quantidade ocupada aparece como informação; quem edita é a gestão, só o total e a distribuição.
+// Campo de vagas de um local, com a ocupação atual logo abaixo (vem das matrículas, não é digitada).
+function CampoVagas({ rotulo, valor, ocupacao, onChange }) {
+  return (
+    <div className="gt5-celula-campo">
+      <input
+        className="gt5-num"
+        type="number"
+        min="0"
+        aria-label={rotulo}
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <span className="gt5-celula-legenda">{ocupacao.ocupadas} ocupadas · {ocupacao.disponiveis} livres</span>
+    </div>
+  );
+}
+
 function LinhaVagas({ formacao, onSalvo, onFeedback }) {
   const inicial = {
     total: formacao.vagas.total,
@@ -15,18 +31,6 @@ function LinhaVagas({ formacao, onSalvo, onFeedback }) {
   const [salvando, setSalvando] = useState(false);
   const mudou = Object.keys(inicial).some((k) => String(valores[k]) !== String(inicial[k]));
   const confere = vagasConferem(valores);
-
-  const campo = (chave, rotulo) => (
-    <td>
-      <input
-        type="number"
-        min="0"
-        aria-label={`${rotulo} de ${formacao.title}`}
-        value={valores[chave]}
-        onChange={(e) => setValores({ ...valores, [chave]: e.target.value })}
-      />
-    </td>
-  );
 
   async function salvar(event) {
     event.preventDefault();
@@ -46,23 +50,26 @@ function LinhaVagas({ formacao, onSalvo, onFeedback }) {
     }
   }
 
+  const set = (chave) => (valor) => setValores({ ...valores, [chave]: valor });
+
+  // Ocupação somada dos três locais, para a coluna do total.
+  const ocupadasTotal = formacao.vagas.online.ocupadas + formacao.vagas.fortaleza.ocupadas + formacao.vagas.interior.ocupadas;
+  const ocupacaoTotal = { ocupadas: ocupadasTotal, disponiveis: formacao.vagas.total - ocupadasTotal };
+
   return (
     <tr>
       <td><strong>{formacao.title}</strong></td>
-      {campo('total', 'Total de vagas')}
-      {campo('online', 'Vagas online')}
-      {campo('fortaleza', 'Vagas em Fortaleza')}
-      {campo('interior', 'Vagas no interior')}
       <td>
-        <form onSubmit={salvar}>
-          {!confere && <span className="gt5-erro-linha">Online + Fortaleza + interior precisa ser igual ao total.</span>}
-          <button type="submit" className="primary-button small" disabled={!mudou || !confere || salvando}>Salvar</button>
-        </form>
+        <CampoVagas rotulo={`Total de ${formacao.title}`} valor={valores.total} ocupacao={ocupacaoTotal} onChange={set('total')} />
       </td>
-      <td className="gt5-ocupacao">
-        <span>Online: {resumoVagas(formacao.vagas.online)}</span>
-        <span>Fortaleza: {resumoVagas(formacao.vagas.fortaleza)}</span>
-        <span>Interior: {resumoVagas(formacao.vagas.interior)}</span>
+      <td><CampoVagas rotulo={`Vagas online de ${formacao.title}`} valor={valores.online} ocupacao={formacao.vagas.online} onChange={set('online')} /></td>
+      <td><CampoVagas rotulo={`Vagas em Fortaleza de ${formacao.title}`} valor={valores.fortaleza} ocupacao={formacao.vagas.fortaleza} onChange={set('fortaleza')} /></td>
+      <td><CampoVagas rotulo={`Vagas no interior de ${formacao.title}`} valor={valores.interior} ocupacao={formacao.vagas.interior} onChange={set('interior')} /></td>
+      <td className="gt5-acoes">
+        <form onSubmit={salvar}>
+          <button type="submit" className="primary-button small" disabled={!mudou || !confere || salvando}>Salvar</button>
+          {!confere && <p className="gt5-erro">Online + Fortaleza + interior precisa ser igual ao total.</p>}
+        </form>
       </td>
     </tr>
   );
@@ -106,38 +113,47 @@ export default function VagasTab({ onFeedback }) {
           <strong>Fortaleza é provisória.</strong> Presencial sem polo conta como Fortaleza, até existir uma sede cadastrada na cidade.
         </p>
       )}
-      <p className="gt5-ajuda">
-        Ocupadas vêm das matrículas sincronizadas do site do GT. Não se digita ocupação aqui.
-      </p>
 
-      <table className="manage-table">
-        <thead>
-          <tr>
-            <th>Formação</th>
-            <th>Total</th>
-            <th>Online</th>
-            <th>Fortaleza</th>
-            <th>Interior</th>
-            <th aria-label="Ação" />
-            <th>Ocupação atual</th>
-          </tr>
-        </thead>
-        <tbody>
-          {dados.formacoes.map((f) => (
-            <LinhaVagas key={f.id} formacao={f} onFeedback={onFeedback} onSalvo={carregar} />
-          ))}
-        </tbody>
-      </table>
+      <div className="gt5-card">
+        <div>
+          <h2>Vagas por formação</h2>
+          <p className="gt5-nota">A ocupação vem das matrículas sincronizadas do site do GT. Aqui você só ajusta o total e a distribuição.</p>
+        </div>
+        <div className="table-wrap">
+          <table className="manage-table">
+            <thead>
+              <tr>
+                <th>Formação</th>
+                <th>Total</th>
+                <th>Online</th>
+                <th>Fortaleza</th>
+                <th>Interior</th>
+                <th aria-label="Ação" />
+              </tr>
+            </thead>
+            <tbody>
+              {dados.formacoes.map((f) => (
+                <LinhaVagas key={f.id} formacao={f} onFeedback={onFeedback} onSalvo={carregar} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      <form className="gt5-regra" onSubmit={salvarRegra}>
-        <label>
+      <form className="gt5-card gt5-regra" onSubmit={salvarRegra}>
+        <div>
+          <h2>Matrícula concluída ocupa vaga</h2>
+          <p className="gt5-nota">
+            Desligado (padrão): só a matrícula ativa ocupa vaga. A gestão ainda não confirmou esta regra.
+          </p>
+        </div>
+        <label className="checkbox-row">
           <input type="checkbox" checked={concluidas} onChange={(e) => setConcluidas(e.target.checked)} />
-          <span>Matrícula concluída ocupa vaga</span>
+          Contar matrículas concluídas como ocupadas
         </label>
-        <p className="gt5-ajuda">
-          Desligado (padrão): só matrícula ativa ocupa vaga. A gestão ainda não confirmou esta regra.
-        </p>
-        <button type="submit" className="ghost-button small" disabled={salvandoRegra}>Salvar regra</button>
+        <div className="gt5-acoes-grupo">
+          <button type="submit" className="ghost-button small" disabled={salvandoRegra}>Salvar regra</button>
+        </div>
       </form>
     </section>
   );
