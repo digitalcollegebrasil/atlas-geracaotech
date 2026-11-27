@@ -35,20 +35,20 @@ export default function Gt5GestaoPage() {
           <p>Formações, vagas, polos, lideranças e turmas da edição 5.0. Inscrições e matrículas continuam no site do GT.</p>
         </section>
 
-        <div className="gt5-abas" role="tablist" aria-label="Seções do cadastro">
+        <nav className="gt5-tabs" role="tablist" aria-label="Seções do cadastro">
           {ABAS.map(([chave, rotulo]) => (
             <button
               key={chave}
               type="button"
               role="tab"
               aria-selected={aba === chave}
-              className={aba === chave ? 'is-active' : ''}
+              className={`tab${aba === chave ? ' active' : ''}`}
               onClick={() => { setAba(chave); setFeedback(null); }}
             >
               {rotulo}
             </button>
           ))}
-        </div>
+        </nav>
 
         <Feedback feedback={feedback} />
         <Atual onFeedback={setFeedback} />

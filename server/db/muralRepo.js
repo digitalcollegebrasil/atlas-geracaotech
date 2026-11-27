@@ -3,7 +3,7 @@ const { PALAVRAS_PADRAO } = require('../services/moderacao');
 
 // Espaços do mural: turma ou grupo de curso. Quem é da equipe (administração, atendente e gestão) vê todos.
 // Aluno e professor veem só os seus. Matrícula suspensa (expulsão) tira o acesso ao espaço.
-const EQUIPE_GLOBAL = ['admin', 'atendente', 'gestao', 'editor'];
+const EQUIPE_GLOBAL = ['admin', 'atendente', 'gestao', 'editor', 'monitor'];
 
 const SEM_SUSPENSAO = (cursoExpr) => `not exists (
   select 1 from enrollments e where e.course_id = ${cursoExpr} and e.user_id = $1 and e.status = 'suspended')`;
@@ -166,9 +166,11 @@ async function atualizarPost(id, campos) {
         set fixado = coalesce($2, fixado),
             resolvido = coalesce($3, resolvido),
             ocultado = coalesce($4, ocultado),
+            titulo = coalesce($5, titulo),
+            corpo = coalesce($6, corpo),
             updated_at = now()
       where id = $1`,
-    [id, campos.fixado ?? null, campos.resolvido ?? null, campos.ocultado ?? null]
+    [id, campos.fixado ?? null, campos.resolvido ?? null, campos.ocultado ?? null, campos.titulo ?? null, campos.corpo ?? null]
   );
 }
 

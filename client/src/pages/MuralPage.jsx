@@ -31,6 +31,7 @@ export default function MuralPage() {
   const [denuncias, setDenuncias] = useState([]);
   const [statusDenuncia, setStatusDenuncia] = useState('pendente');
   const [palavras, setPalavras] = useState('');
+  const [editando, setEditando] = useState(null);
 
   const espacoAtual = useMemo(() => (espacos || []).find((item) => `${item.tipo}:${item.id}` === chave), [espacos, chave]);
   const moderaEspaco = permissoes.podeModerar;
@@ -137,6 +138,23 @@ export default function MuralPage() {
       carregarPosts();
     } catch (err) {
       setErro(errorText(err, 'Não foi possível atualizar.'));
+    }
+  };
+
+  // Edição do conteúdo pelo autor ou pela equipe de moderação.
+  const salvarEdicao = async () => {
+    if (!editando) return;
+    setBusy(true);
+    setErro('');
+    try {
+      await api.patch(`/mural/posts/${aberto.post.id}`, { titulo: editando.titulo, corpo: editando.corpo });
+      setEditando(null);
+      await abrirPost(aberto.post.id);
+      carregarPosts();
+    } catch (err) {
+      setErro(errorText(err, 'Não foi possível salvar a edição.'));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -402,9 +420,29 @@ export default function MuralPage() {
               </span>
             </header>
 
-            {aberto.post.corpo && <p className="mural-corpo">{aberto.post.corpo}</p>}
+            {editando ? (
+              <form className="mural-editar" onSubmit={(e) => { e.preventDefault(); salvarEdicao(); }}>
+                <label>
+                  <span>Título</span>
+                  <input value={editando.titulo} minLength={3} maxLength={160} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} required />
+                </label>
+                <label>
+                  <span>Texto</span>
+                  <textarea rows={6} maxLength={4000} value={editando.corpo} onChange={(e) => setEditando({ ...editando, corpo: e.target.value })} />
+                </label>
+                <div className="mural-acoes">
+                  <button type="submit" className="primary-button small" disabled={busy}>{busy ? 'Salvando…' : 'Salvar edição'}</button>
+                  <button type="button" className="ghost-button small" onClick={() => setEditando(null)} disabled={busy}>Cancelar</button>
+                </div>
+              </form>
+            ) : (
+              aberto.post.corpo && <p className="mural-corpo">{aberto.post.corpo}</p>
+            )}
 
             <div className="mural-acoes">
+              {!editando && (aberto.podeModerar || aberto.post.autor.id === user?.id) && (
+                <button type="button" className="ghost-button small" onClick={() => setEditando({ titulo: aberto.post.titulo, corpo: aberto.post.corpo || '' })}>Editar</button>
+              )}
               {aberto.podeModerar && aberto.post.tipo === 'forum' && (
                 <button type="button" className="ghost-button small" onClick={() => alterarPost({ fixado: !aberto.post.fixado })}>
                   {aberto.post.fixado ? 'Desafixar' : 'Fixar no topo'}

@@ -11,7 +11,18 @@ import { exportRows } from '../utils/userSheet';
 import { ROLE_LABELS } from '../utils/roles';
 
 // Contas de usuário (somente administradores), equivalente a "Contas de usuário" no Moodle.
-const EMPTY_FILTERS = { q: '', role: '', status: '', courseSlug: '', groupId: '' };
+// Alunos é a aba inicial: a maior parte das contas são alunos. Os demais papéis ficam em abas próprias.
+const EMPTY_FILTERS = { q: '', role: 'student', status: '', courseSlug: '', groupId: '' };
+const ROLE_TABS = [
+  ['student', 'Alunos'],
+  ['teacher', 'Professores'],
+  ['editor', 'Editores'],
+  ['atendente', 'Atendentes'],
+  ['monitor', 'Monitores'],
+  ['gestao', 'Gestão'],
+  ['admin', 'Administradores'],
+  ['', 'Todos'],
+];
 const PAGE_SIZES = [10, 25, 50, 100];
 const STATUS_LABELS = { active: 'Ativa', pending: 'Primeiro acesso pendente', inactive: 'Desativada' };
 
@@ -30,6 +41,8 @@ export default function ManageUsersPage() {
   const [feedback, setFeedback] = useState(null);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState(null);
+  // CPF é o login do aluno: a coluna aparece só na aba de alunos.
+  const mostraCpf = filters.role === 'student';
   const { values, handleChange, reset } = useForm({ name: '', email: '', password: '', cpf: '', role: 'student' });
 
   const queryParams = (source) => ({
@@ -165,22 +178,24 @@ export default function ManageUsersPage() {
         )}
 
         <section className="surface-card users-panel">
+          <nav className="users-subtabs" role="tablist" aria-label="Papel dos usuários">
+            {ROLE_TABS.map(([valor, rotulo]) => (
+              <button
+                key={valor || 'todos'}
+                type="button"
+                role="tab"
+                aria-selected={filters.role === valor}
+                className={`tab${filters.role === valor ? ' active' : ''}`}
+                onClick={() => applyFilters({ role: valor })}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </nav>
           <form className="users-filters" onSubmit={(event) => { event.preventDefault(); load(filters, 1, data.pageSize); }}>
             <label className="users-filter-search">
               <span>Nome, e-mail ou CPF completo</span>
               <input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Buscar…" />
-            </label>
-            <label>
-              <span>Papel</span>
-              <select value={filters.role} onChange={(event) => applyFilters({ role: event.target.value })}>
-                <option value="">Todos</option>
-                <option value="admin">Administradores</option>
-                <option value="atendente">Atendentes</option>
-                <option value="gestao">Gestão</option>
-                <option value="editor">Editores</option>
-                <option value="teacher">Professores</option>
-                <option value="student">Alunos</option>
-              </select>
             </label>
             <label>
               <span>Situação</span>
@@ -224,12 +239,12 @@ export default function ManageUsersPage() {
               <table className="users-table">
                 <thead>
                   <tr>
-                    <th>Aluno</th>
-                    <th>CPF</th>
-                    <th>Papel</th>
-                    <th>Situação</th>
-                    <th>Cursos</th>
-                    <th>Grupos</th>
+                    <th className="col-name">Usuário</th>
+                    {mostraCpf && <th className="col-cpf">CPF</th>}
+                    <th className="col-role">Papel</th>
+                    <th className="col-status">Situação</th>
+                    <th className="col-courses">Cursos</th>
+                    <th className="col-groups">Grupos</th>
                     <th className="col-actions">Ações</th>
                   </tr>
                 </thead>
@@ -243,7 +258,7 @@ export default function ManageUsersPage() {
                           <strong title={item.name}>{item.name}</strong>
                           <div className="muted" title={item.email}>{item.email}</div>
                         </td>
-                        <td className="nowrap">{item.cpfMasked || '—'}</td>
+                        {mostraCpf && <td className="nowrap">{item.cpfMasked || '—'}</td>}
                         <td className="nowrap">
                           <select
                             className="role-select"
@@ -270,7 +285,7 @@ export default function ManageUsersPage() {
                             </span>
                           )}
                         </td>
-                        <td className="nowrap">
+                        <td className="col-groups nowrap">
                           {item.groups.length === 0 ? <span className="muted">—</span> : `${item.groups.length} grupo(s)`}
                         </td>
                         <td className="col-actions">

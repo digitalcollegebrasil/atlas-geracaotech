@@ -555,3 +555,30 @@
   background: var(--surface);
   color: inherit;
 }
+
+/* Gestão do ponto: incluir, editar em lote, importar planilha e exportar */
+.ponto-acoes-exportar,
+.ponto-acoes { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.ponto-acoes { padding: 0 0 0.25rem; }
+.ponto-formulario {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem 1rem; align-items: end;
+}
+.ponto-formulario > label,
+.ponto-lote > label { margin: 0; }
+.ponto-campo-largo { grid-column: 1 / -1; }
+.ponto-formulario-acoes { grid-column: 1 / -1; display: flex; gap: 0.5rem; }
+.ponto-lote {
+  display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; margin-top: 1rem;
+  padding: 0.9rem 1rem; border-radius: var(--radius-lg); background: var(--primary-soft);
+}
+.ponto-lote > label { min-width: 170px; }
+.ponto-lote-texto { font-weight: 600; color: var(--primary); align-self: center; }
+.ponto-marcar { width: auto; margin: 0; }
+.ponto-marcada td { background: var(--primary-soft); }
+.col-marcar { width: 2.5rem; }
+.col-acao { width: 6rem; }
+.ponto-import-erros { margin: 0.5rem 0 0; padding-left: 1.2rem; color: var(--danger); }
+/* Botão de arquivo: a regra global de label não pode esticá-lo nem empurrar a linha */
+.ponto-acoes > label.ghost-button { display: inline-flex; align-items: center; margin: 0; cursor: pointer; }
+/* Tabela de ponto: botão de ação sempre em uma linha e coluna de ação com largura mínima */
+.docente-ponto .users-table td:last-child { white-space: nowrap; }

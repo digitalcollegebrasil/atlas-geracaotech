@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listarFormacoes, atualizarFormacao } from '../../services/gt5';
 import { errorText } from '../manage/shared';
 
-// Formações da edição 5.0. Carga horária e duração podem ficar vazias: o documento não informa para duas formações.
+// Uma formação: carga horária e duração. Vazias enquanto não informadas; nada é assumido.
 function LinhaFormacao({ formacao, onSalvo, onFeedback }) {
   const [carga, setCarga] = useState(formacao.carga_horaria ?? '');
   const [duracao, setDuracao] = useState(formacao.duracao_semanas ?? '');
@@ -27,28 +27,18 @@ function LinhaFormacao({ formacao, onSalvo, onFeedback }) {
     <tr>
       <td>
         <strong>{formacao.title}</strong>
-        {!formacao.visible && <span className="gt5-marca">oculta no site</span>}
+        {!formacao.visible && <span className="badge hidden gt5-badge">oculta no site</span>}
       </td>
       <td>
-        <form className="gt5-linha-form" onSubmit={salvar}>
-          <input
-            type="number"
-            min="1"
-            aria-label={`Carga horária de ${formacao.title}`}
-            placeholder="não informada"
-            value={carga}
-            onChange={(e) => setCarga(e.target.value)}
-          />
-          <span className="gt5-unidade">horas</span>
-          <input
-            type="number"
-            min="1"
-            aria-label={`Duração de ${formacao.title}`}
-            placeholder="não informada"
-            value={duracao}
-            onChange={(e) => setDuracao(e.target.value)}
-          />
-          <span className="gt5-unidade">semanas</span>
+        <form className="gt5-acoes-grupo" onSubmit={salvar}>
+          <label className="gt5-campo">
+            <span>Carga horária (h)</span>
+            <input className="gt5-num" type="number" min="1" placeholder="não informada" value={carga} onChange={(e) => setCarga(e.target.value)} />
+          </label>
+          <label className="gt5-campo">
+            <span>Duração (semanas)</span>
+            <input className="gt5-num" type="number" min="1" placeholder="não informada" value={duracao} onChange={(e) => setDuracao(e.target.value)} />
+          </label>
           <button type="submit" className="primary-button small" disabled={!mudou || salvando}>Salvar</button>
         </form>
       </td>
@@ -69,23 +59,26 @@ export default function FormacoesTab({ onFeedback }) {
   if (!formacoes) return <p className="gt5-vazio">Carregando formações…</p>;
 
   return (
-    <section className="gt5-secao">
-      <p className="gt5-ajuda">
-        As formações vêm do documento GT 5.0. Aqui você preenche carga horária e duração. Enquanto estiverem em branco, nada é assumido.
-      </p>
-      <table className="manage-table">
-        <thead>
-          <tr>
-            <th>Formação</th>
-            <th>Carga horária e duração</th>
-          </tr>
-        </thead>
-        <tbody>
-          {formacoes.map((f) => (
-            <LinhaFormacao key={f.id} formacao={f} onFeedback={onFeedback} onSalvo={carregar} />
-          ))}
-        </tbody>
-      </table>
+    <section className="gt5-card">
+      <div>
+        <h2>Formações da edição 5.0</h2>
+        <p className="gt5-nota">Vêm do documento GT 5.0. Preencha carga horária e duração quando a informação for definida.</p>
+      </div>
+      <div className="table-wrap">
+        <table className="manage-table">
+          <thead>
+            <tr>
+              <th>Formação</th>
+              <th>Carga horária e duração</th>
+            </tr>
+          </thead>
+          <tbody>
+            {formacoes.map((f) => (
+              <LinhaFormacao key={f.id} formacao={f} onFeedback={onFeedback} onSalvo={carregar} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

@@ -12,6 +12,10 @@ router.get('/estado', asyncHandler(ia.estado));
 // Liga/desliga a IA pelo sistema. So administracao.
 router.put('/estado', requireRole('admin'), asyncHandler(ia.definirEstado));
 
+// Aparência do tutor (nome, imagem, cores, fonte e formato). Leitura: qualquer usuário logado. Gravação: só administração.
+router.get('/aparencia', asyncHandler(ia.obterAparenciaTutor));
+router.put('/aparencia', requireRole('admin'), asyncHandler(ia.salvarAparenciaTutor));
+
 // Tutor da aula: limite de 10 perguntas por minuto por IP, para conter custo.
 router.post('/tutor', rateLimit({ windowMs: 60_000, max: 10 }), asyncHandler(ia.tutor));
 

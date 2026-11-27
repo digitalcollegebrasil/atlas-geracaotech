@@ -7,6 +7,20 @@ const asyncHandler = require('../utils/asyncHandler');
 const router = express.Router();
 router.get('/gestao/ponto', requireRole('admin', 'gestao'), asyncHandler(docente.gestaoPonto));
 router.get('/gestao/ponto/exportar', requireRole('admin', 'gestao'), asyncHandler(docente.exportarPontoGestao));
+router.post('/gestao/ponto', requireRole('admin', 'gestao'), asyncHandler(docente.criarPontoGestao));
+router.patch('/gestao/ponto/:pontoId', requireRole('admin', 'gestao'), asyncHandler(docente.editarPontoGestao));
+router.delete('/gestao/ponto/:pontoId', requireRole('admin', 'gestao'), asyncHandler(docente.excluirPontoGestao));
+router.post('/gestao/ponto/lote', requireRole('admin', 'gestao'), asyncHandler(docente.lotePontoGestao));
+router.post('/gestao/ponto/importar', requireRole('admin', 'gestao'), asyncHandler(docente.importarPontoGestao));
+router.get('/gestao/ponto/modelo', requireRole('admin', 'gestao'), asyncHandler(docente.modeloPontoGestao));
+// Ponto sem GPS (professor e monitor): entrada e saída na aula de hoje, aula extra e histórico.
+const PONTO_ROLES = requireRole('admin', 'teacher', 'monitor');
+router.get('/ponto/hoje', PONTO_ROLES, asyncHandler(docente.pontoHoje));
+router.post('/ponto/entrada', PONTO_ROLES, asyncHandler(docente.entrada));
+router.post('/ponto/:pontoId/saida', PONTO_ROLES, asyncHandler(docente.saida));
+router.post('/ponto/extra', PONTO_ROLES, asyncHandler(docente.aulaExtra));
+router.get('/ponto', PONTO_ROLES, asyncHandler(docente.historicoPonto));
+
 router.use(requireRole('admin', 'teacher'));
 
 // Turmas e cronograma das turmas que ministra. Editar o cronograma é só da administração.
@@ -39,12 +53,6 @@ router.post('/arquivos', asyncHandler(docente.enviarArquivo));
 router.get('/arquivos/:arquivoId', asyncHandler(docente.baixarArquivo));
 router.delete('/arquivos/:arquivoId', asyncHandler(docente.removerArquivo));
 
-// Ponto sem GPS: entrada e saída na aula de hoje, aula extra e histórico.
-router.get('/ponto/hoje', asyncHandler(docente.pontoHoje));
-router.post('/ponto/entrada', asyncHandler(docente.entrada));
-router.post('/ponto/:pontoId/saida', asyncHandler(docente.saida));
-router.post('/ponto/extra', asyncHandler(docente.aulaExtra));
-router.get('/ponto', asyncHandler(docente.historicoPonto));
 
 // Administração: ponto de todos os professores, só para visualizar e exportar (a gestão não altera os registros).
 

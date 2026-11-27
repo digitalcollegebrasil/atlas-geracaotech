@@ -7,7 +7,7 @@
 /* ---------- Menu lateral recolhível ---------- */
 
 .dashboard-layout:has(> .sidebar.is-collapsed) {
-  grid-template-columns: 68px 1fr;
+  grid-template-columns: 68px minmax(0, 1fr);
 }
 
 .sidebar-head {

@@ -6,13 +6,14 @@ import {
 import { errorText, FormActions } from '../manage/shared';
 import { COLUNAS_PLANILHA, agruparTurmas, formatarData } from './gt5Format';
 import UltimaSincronizacao from './UltimaSincronizacao';
+import Campo from './Campo';
 
 const NOVA_VAZIA = {
   codigo: '', curso: '', modalidade: 'Presencial', sede: '', nome: '',
   turno: '', dias_semana: '', horario: '', data_inicio: '', data_fim: '', ativa: true,
 };
 
-// Edição dos dados que a gestão pode mudar. Curso, modalidade e polo só mudam pela planilha ou pela integração.
+// Edição de uma turma na própria linha. Curso, modalidade e polo não mudam aqui.
 function EditarTurma({ turma, onSalvar, onCancelar }) {
   const [v, setV] = useState({
     nome: turma.nome, turno: turma.turno, dias_semana: turma.dias_semana, horario: turma.horario,
@@ -21,17 +22,24 @@ function EditarTurma({ turma, onSalvar, onCancelar }) {
   const set = (campo) => (e) => setV({ ...v, [campo]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
   return (
-    <tr>
+    <tr className="gt5-edicao">
       <td colSpan={6}>
-        <form className="gt5-grade" onSubmit={(e) => { e.preventDefault(); onSalvar(v); }}>
-          <input aria-label="Nome da turma" value={v.nome} onChange={set('nome')} maxLength={160} required />
-          <input aria-label="Turno" placeholder="Turno" value={v.turno} onChange={set('turno')} maxLength={40} />
-          <input aria-label="Dias da semana" placeholder="ex.: seg;qua" value={v.dias_semana} onChange={set('dias_semana')} maxLength={60} />
-          <input aria-label="Horário" placeholder="ex.: 19:00-21:00" value={v.horario} onChange={set('horario')} maxLength={60} />
-          <input aria-label="Data de início" type="date" value={v.data_inicio} onChange={set('data_inicio')} />
-          <input aria-label="Data de término" type="date" value={v.data_fim} onChange={set('data_fim')} />
-          <label><input type="checkbox" checked={v.ativa} onChange={set('ativa')} /> Turma ativa</label>
-          <FormActions submitLabel="Salvar turma" onCancel={onCancelar} />
+        <form onSubmit={(e) => { e.preventDefault(); onSalvar(v); }}>
+          <div className="form-grid">
+            <Campo rotulo="Nome da turma"><input value={v.nome} onChange={set('nome')} maxLength={160} required /></Campo>
+            <Campo rotulo="Turno"><input value={v.turno} onChange={set('turno')} maxLength={40} /></Campo>
+            <Campo rotulo="Dias da semana"><input placeholder="ex.: seg;qua" value={v.dias_semana} onChange={set('dias_semana')} maxLength={60} /></Campo>
+            <Campo rotulo="Horário"><input placeholder="ex.: 19:00-21:00" value={v.horario} onChange={set('horario')} maxLength={60} /></Campo>
+            <Campo rotulo="Início"><input type="date" value={v.data_inicio} onChange={set('data_inicio')} /></Campo>
+            <Campo rotulo="Término"><input type="date" value={v.data_fim} onChange={set('data_fim')} /></Campo>
+          </div>
+          <div className="gt5-acoes-grupo">
+            <label className="checkbox-row">
+              <input type="checkbox" checked={v.ativa} onChange={set('ativa')} />
+              Turma ativa
+            </label>
+            <FormActions submitLabel="Salvar turma" onCancel={onCancelar} />
+          </div>
         </form>
       </td>
     </tr>
@@ -136,75 +144,96 @@ export default function TurmasTab({ onFeedback }) {
 
   return (
     <section className="gt5-secao">
-      <div className="gt5-barra">
-        <button type="button" className="primary-button small" onClick={() => setMostrarNova(!mostrarNova)}>
-          {mostrarNova ? 'Fechar' : 'Nova turma'}
-        </button>
-        <label className="ghost-button small gt5-botao-arquivo">
-          Importar planilha
-          <input type="file" accept=".csv,text/csv" onChange={importar} aria-label="Escolher planilha de turmas" />
-        </label>
-        <button type="button" className="ghost-button small" onClick={exportar}>Baixar planilha</button>
+      <div className="gt5-card">
+        <div className="gt5-cabecalho">
+          <div>
+            <h2>Turmas</h2>
+            <UltimaSincronizacao sincronizacoes={sincronizacoes} />
+          </div>
+          <div className="gt5-acoes-grupo">
+            <button type="button" className="ghost-button small" onClick={exportar}>Baixar planilha</button>
+            <label className="ghost-button small gt5-arquivo">
+              Importar planilha
+              <input type="file" accept=".csv,text/csv" onChange={importar} aria-label="Escolher planilha de turmas" />
+            </label>
+            <button type="button" className="primary-button small" onClick={() => setMostrarNova(!mostrarNova)}>
+              {mostrarNova ? 'Fechar' : 'Nova turma'}
+            </button>
+          </div>
+        </div>
+
+        <details className="gt5-planilha">
+          <summary>Como montar a planilha</summary>
+          <p className="gt5-nota">
+            Cabeçalho na primeira linha, em qualquer ordem. Separador vírgula ou ponto e vírgula. Até 500 turmas por envio.
+            Linha com número de campos diferente do cabeçalho é recusada.
+          </p>
+          <div className="table-wrap">
+            <table className="manage-table">
+              <thead><tr><th>Coluna</th><th>Obrigatória</th><th>Como preencher</th></tr></thead>
+              <tbody>
+                {COLUNAS_PLANILHA.map((c) => (
+                  <tr key={c.coluna}>
+                    <td><code>{c.coluna}</code></td>
+                    <td>{c.obrigatoria ? 'sim' : 'não'}</td>
+                    <td>{c.descricao}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </div>
 
-      <UltimaSincronizacao sincronizacoes={sincronizacoes} />
-
-      <details className="gt5-planilha">
-        <summary>Como montar a planilha</summary>
-        <p className="gt5-ajuda">
-          Cabeçalho na primeira linha, em qualquer ordem. Separador vírgula ou ponto e vírgula. Até 500 turmas por envio.
-          Uma linha com número de campos diferente do cabeçalho é recusada.
-        </p>
-        <table className="manage-table">
-          <thead><tr><th>Coluna</th><th>Obrigatória</th><th>Como preencher</th></tr></thead>
-          <tbody>
-            {COLUNAS_PLANILHA.map((c) => (
-              <tr key={c.coluna}>
-                <td><code>{c.coluna}</code></td>
-                <td>{c.obrigatoria ? 'sim' : 'não'}</td>
-                <td>{c.descricao}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
-
       {errosPlanilha && (
-        <div className="gt5-erros" role="alert">
+        <div className="gt5-relatorio" role="alert">
           <p><strong>A planilha tem {errosPlanilha.length} erro(s). Nenhuma turma foi gravada.</strong> Corrija as linhas abaixo e envie de novo.</p>
-          <table className="manage-table">
-            <thead><tr><th>Linha</th><th>Erro</th></tr></thead>
-            <tbody>
-              {errosPlanilha.map((e) => <tr key={`${e.linha}-${e.erro}`}><td>{e.linha}</td><td>{e.erro}</td></tr>)}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="manage-table">
+              <thead><tr><th>Linha</th><th>Erro</th></tr></thead>
+              <tbody>
+                {errosPlanilha.map((e) => <tr key={`${e.linha}-${e.erro}`}><td>{e.linha}</td><td>{e.erro}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {mostrarNova && (
-        <form className="gt5-nova gt5-grade" onSubmit={criar}>
-          <select aria-label="Código da formação" value={nova.curso} onChange={(e) => setNova({ ...nova, curso: e.target.value })} required>
-            <option value="">Formação…</option>
-            {formacoes.map((f) => <option key={f.slug} value={f.slug}>{f.title}</option>)}
-          </select>
-          <input aria-label="Código da turma" placeholder="Código, ex.: GT5-SOB-01" value={nova.codigo} onChange={(e) => setNova({ ...nova, codigo: e.target.value })} maxLength={120} required />
-          <select aria-label="Modalidade" value={nova.modalidade} onChange={(e) => setNova({ ...nova, modalidade: e.target.value })}>
-            <option value="Presencial">Presencial</option>
-            <option value="Online">Online</option>
-          </select>
-          {nova.modalidade === 'Presencial' && (
-            <select aria-label="Polo" value={nova.sede} onChange={(e) => setNova({ ...nova, sede: e.target.value })}>
-              <option value="">Sem polo (Fortaleza, provisório)</option>
-              {polos.filter((p) => p.ativa).map((p) => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-            </select>
-          )}
-          <input aria-label="Nome da turma" placeholder="Nome da turma" value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} maxLength={160} required />
-          <input aria-label="Turno" placeholder="Turno" value={nova.turno} onChange={(e) => setNova({ ...nova, turno: e.target.value })} maxLength={40} />
-          <input aria-label="Dias da semana" placeholder="ex.: seg;qua" value={nova.dias_semana} onChange={(e) => setNova({ ...nova, dias_semana: e.target.value })} maxLength={60} />
-          <input aria-label="Horário" placeholder="ex.: 19:00-21:00" value={nova.horario} onChange={(e) => setNova({ ...nova, horario: e.target.value })} maxLength={60} />
-          <input aria-label="Data de início" type="date" value={nova.data_inicio} onChange={(e) => setNova({ ...nova, data_inicio: e.target.value })} />
-          <input aria-label="Data de término" type="date" value={nova.data_fim} onChange={(e) => setNova({ ...nova, data_fim: e.target.value })} />
-          {erroNova && <p className="gt5-erro-linha" role="alert">{erroNova}</p>}
+        <form className="gt5-card" onSubmit={criar}>
+          <h2>Nova turma</h2>
+          <div className="form-grid">
+            <Campo rotulo="Formação">
+              <select value={nova.curso} onChange={(e) => setNova({ ...nova, curso: e.target.value })} required>
+                <option value="">Escolher…</option>
+                {formacoes.map((f) => <option key={f.slug} value={f.slug}>{f.title}</option>)}
+              </select>
+            </Campo>
+            <Campo rotulo="Código da turma">
+              <input placeholder="ex.: GT5-SOB-01" value={nova.codigo} onChange={(e) => setNova({ ...nova, codigo: e.target.value })} maxLength={120} required />
+            </Campo>
+            <Campo rotulo="Modalidade">
+              <select value={nova.modalidade} onChange={(e) => setNova({ ...nova, modalidade: e.target.value })}>
+                <option value="Presencial">Presencial</option>
+                <option value="Online">Online</option>
+              </select>
+            </Campo>
+            {nova.modalidade === 'Presencial' && (
+              <Campo rotulo="Polo">
+                <select value={nova.sede} onChange={(e) => setNova({ ...nova, sede: e.target.value })}>
+                  <option value="">Sem polo (Fortaleza, provisório)</option>
+                  {polos.filter((p) => p.ativa).map((p) => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                </select>
+              </Campo>
+            )}
+            <Campo rotulo="Nome da turma"><input value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} maxLength={160} required /></Campo>
+            <Campo rotulo="Turno"><input value={nova.turno} onChange={(e) => setNova({ ...nova, turno: e.target.value })} maxLength={40} /></Campo>
+            <Campo rotulo="Dias da semana"><input placeholder="ex.: seg;qua" value={nova.dias_semana} onChange={(e) => setNova({ ...nova, dias_semana: e.target.value })} maxLength={60} /></Campo>
+            <Campo rotulo="Horário"><input placeholder="ex.: 19:00-21:00" value={nova.horario} onChange={(e) => setNova({ ...nova, horario: e.target.value })} maxLength={60} /></Campo>
+            <Campo rotulo="Início"><input type="date" value={nova.data_inicio} onChange={(e) => setNova({ ...nova, data_inicio: e.target.value })} /></Campo>
+            <Campo rotulo="Término"><input type="date" value={nova.data_fim} onChange={(e) => setNova({ ...nova, data_fim: e.target.value })} /></Campo>
+          </div>
+          {erroNova && <p className="gt5-erro" role="alert">{erroNova}</p>}
           <FormActions submitLabel="Criar turma" onCancel={() => setMostrarNova(false)} />
         </form>
       )}
@@ -212,40 +241,45 @@ export default function TurmasTab({ onFeedback }) {
       {grupos.length === 0 && <p className="gt5-vazio">Nenhuma turma cadastrada. Importe a planilha ou crie uma turma.</p>}
 
       {grupos.map((grupo) => (
-        <div key={grupo.formacao} className="gt5-grupo">
+        <div key={grupo.formacao} className="gt5-card">
           <h2>{grupo.formacao}</h2>
           {grupo.locais.map((local) => (
             <div key={local.local} className="gt5-local">
               <h3>{local.local}</h3>
-              <table className="manage-table">
-                <thead>
-                  <tr>
-                    <th>Turma</th>
-                    <th>Dias e horário</th>
-                    <th>Período</th>
-                    <th>Alunos</th>
-                    <th>Situação</th>
-                    <th aria-label="Ações" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {local.turmas.map((t) => (editandoId === t.id ? (
-                    <EditarTurma key={t.id} turma={t} onCancelar={() => setEditandoId(null)} onSalvar={(dados) => salvarEdicao(t, dados)} />
-                  ) : (
-                    <tr key={t.id}>
-                      <td><strong>{t.nome}</strong> <span className="gt5-ajuda">{t.codigo}</span></td>
-                      <td>{[t.dias_semana, t.horario, t.turno].filter(Boolean).join(' · ') || '—'}</td>
-                      <td>{formatarData(t.data_inicio)} a {formatarData(t.data_fim)}</td>
-                      <td>{t.alunos}</td>
-                      <td>{t.ativa ? 'Ativa' : 'Inativa'}</td>
-                      <td className="gt5-acoes">
-                        <button type="button" className="ghost-button small" onClick={() => setEditandoId(t.id)}>Editar</button>
-                        <button type="button" className="ghost-button small danger" onClick={() => excluir(t)}>Excluir</button>
-                      </td>
+              <div className="table-wrap">
+                <table className="manage-table">
+                  <thead>
+                    <tr>
+                      <th>Turma</th>
+                      <th>Dias e horário</th>
+                      <th>Período</th>
+                      <th>Alunos</th>
+                      <th>Situação</th>
+                      <th aria-label="Ações" />
                     </tr>
-                  )))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {local.turmas.map((t) => (editandoId === t.id ? (
+                      <EditarTurma key={t.id} turma={t} onCancelar={() => setEditandoId(null)} onSalvar={(dados) => salvarEdicao(t, dados)} />
+                    ) : (
+                      <tr key={t.id}>
+                        <td>
+                          <strong>{t.nome}</strong>
+                          <span className="gt5-id">{t.codigo}</span>
+                        </td>
+                        <td>{[t.dias_semana, t.horario, t.turno].filter(Boolean).join(' · ') || '—'}</td>
+                        <td>{formatarData(t.data_inicio)} a {formatarData(t.data_fim)}</td>
+                        <td>{t.alunos}</td>
+                        <td><span className={`badge${t.ativa ? '' : ' hidden'}`}>{t.ativa ? 'Ativa' : 'Inativa'}</span></td>
+                        <td className="gt5-acoes">
+                          <button type="button" className="ghost-button small" onClick={() => setEditandoId(t.id)}>Editar</button>
+                          <button type="button" className="danger-button small" onClick={() => excluir(t)}>Excluir</button>
+                        </td>
+                      </tr>
+                    )))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ))}
         </div>

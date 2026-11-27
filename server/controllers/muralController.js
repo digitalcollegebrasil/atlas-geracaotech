@@ -182,6 +182,17 @@ exports.atualizarPost = async (req, res) => {
     }
     campos.resolvido = body.resolvido;
   }
+  // Edição do conteúdo: quem escreveu ou a equipe de moderação (atendimento, gestão, admin, professor do espaço).
+  if (typeof body.titulo === 'string' || typeof body.corpo === 'string') {
+    if (post.autor_id !== req.user.id && !acesso.moderacao) throw httpError(403, 'Você só pode editar as suas publicações.');
+    const titulo = typeof body.titulo === 'string' ? body.titulo.trim() : post.titulo;
+    const corpo = typeof body.corpo === 'string' ? body.corpo.trim() : post.corpo;
+    if (titulo.length < 3 || titulo.length > 160) throw httpError(400, 'O título deve ter entre 3 e 160 caracteres.');
+    if (corpo.length > 4000) throw httpError(400, 'O texto pode ter até 4000 caracteres.');
+    await exigirFiltro(req.user, `${titulo} ${corpo}`);
+    campos.titulo = titulo;
+    campos.corpo = corpo;
+  }
   if (!Object.keys(campos).length) throw httpError(400, 'Nada para atualizar.');
   await mural.atualizarPost(post.id, campos);
   const atualizado = await mural.buscarPost(post.id);

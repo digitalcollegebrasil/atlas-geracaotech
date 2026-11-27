@@ -19,6 +19,12 @@ const teachingItems = [
   { to: '/gestao/presenca', label: 'Presença', icon: 'users' },
   { to: '/ponto', label: 'Meu ponto', icon: 'clock' }
 ];
+// Monitoria: mural para ajudar os alunos e o ponto de monitoria.
+const monitorItems = [
+  { to: '/mural', label: 'Mural', icon: 'bell' },
+  { to: '/ponto', label: 'Meu ponto', icon: 'clock' },
+  { to: '/minha-area', label: 'Meu perfil', icon: 'user' }
+];
 const atendenteItems = [
   { to: '/gestao/atendimento', label: 'Atendimento', icon: 'chat' },
   { to: '/mural', label: 'Mural', icon: 'bell' },
@@ -59,7 +65,7 @@ const adminItems = [
 ];
 
 export default function Sidebar() {
-  const { isAdmin, isTeacher, isAtendente, isGestao, isEditor } = useAuth();
+  const { isAdmin, isTeacher, isAtendente, isGestao, isEditor, isMonitor } = useAuth();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
 
   // Anotações e editor de código são exclusivos do aluno.
@@ -71,6 +77,8 @@ export default function Sidebar() {
       ? gestaoItems
       : isAtendente
         ? atendenteItems
+        : isMonitor
+          ? monitorItems
         : [
         // Certificados: professor não vê (só a administração gerencia).
         ...items.filter((item) => !(isTeacher && studentOnly.has(item.to)) && !(isTeacher && !isAdmin && item.to === '/documentos')),

@@ -5,7 +5,8 @@ export const ROLE_LABELS = {
   student: 'Aluno',
   atendente: 'Atendente',
   gestao: 'Gestão',
-  editor: 'Editor'
+  editor: 'Editor',
+  monitor: 'Monitor'
 };
 
 export const COURSE_ROLE_LABELS = {
@@ -29,6 +30,11 @@ export function isAtendente(role) {
 // Gestão: acompanha alunos, relatórios e presença. Não edita cursos nem usuários.
 export function isGestao(role) {
   return role === 'gestao';
+}
+
+// Monitor: ajuda os alunos no mural e no espaço de código; bate ponto como o professor.
+export function isMonitor(role) {
+  return role === 'monitor';
 }
 
 // Editor: edita cursos (conteúdo) e a aparência do site.
