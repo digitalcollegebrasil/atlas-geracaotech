@@ -43,6 +43,10 @@ function lerCsv(texto) {
 
   return linhas.slice(1).map((linha, i) => {
     const valores = campos(linha);
+    // Número de campos diferente do cabeçalho indica coluna deslocada; recusa para não gravar no campo errado.
+    if (valores.length !== cabecalho.length) {
+      throw httpError(400, `Linha ${i + 2} tem ${valores.length} campos, e o cabeçalho tem ${cabecalho.length}. Confira as vírgulas.`);
+    }
     const registro = { _linha: i + 2 };
     cabecalho.forEach((coluna, j) => { registro[coluna] = valores[j] ?? ''; });
     return registro;

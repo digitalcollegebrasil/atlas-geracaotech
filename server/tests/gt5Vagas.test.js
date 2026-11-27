@@ -70,6 +70,12 @@ describe('planilha de turmas', () => {
     assert.equal(erro(() => lerCsv('codigo,curso\nT1,a')).statusCode, 400);
   });
 
+  test('linha com campo a mais ou a menos é recusada, com o número da linha', () => {
+    const e = erro(() => lerCsv('codigo,curso,modalidade,ativa\nT1,gt5-full-cycle-ai,Online,sim\nT2,gt5-full-cycle-ai,Online'));
+    assert.equal(e.statusCode, 400);
+    assert.match(e.message, /Linha 3/);
+  });
+
   test('"ativa" aceita sim/não e vazio fica sem valor', () => {
     const base = { codigo: 'T1', curso: 'c', modalidade: 'Online', sede: '', nome: '', turno: '', dias_semana: '', horario: '', data_inicio: '', data_fim: '' };
     assert.equal(linhaParaTurma({ ...base, ativa: 'sim' }).ativa, true);
