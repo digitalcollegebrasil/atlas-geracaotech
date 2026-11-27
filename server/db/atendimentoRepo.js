@@ -52,9 +52,10 @@ function encontrarFaq(texto, faqs) {
   return melhor;
 }
 
-async function faqAtivas() {
+async function faqAtivas(canal = 'atendimento') {
   const { rows } = await query(
-    'select id, titulo, palavras, resposta from atendimento_faq where ativo = true order by ordem, titulo'
+    'select id, titulo, palavras, resposta from atendimento_faq where ativo = true and canal = $1 order by ordem, titulo',
+    [canal]
   );
   return rows;
 }
@@ -84,6 +85,7 @@ function mapSessao(row) {
     ultimaMensagemEm: row.ultima_mensagem_em,
     createdAt: row.created_at,
     finalizadoEm: row.finalizado_em,
+    canal: row.canal,
     aluno: row.aluno_nome ? { nome: row.aluno_nome, email: row.aluno_email } : undefined,
     ultimaTexto: row.ultima_texto,
     atendenteNome: row.atendente_nome || null
@@ -100,25 +102,25 @@ async function inserirMensagem(sessaoId, remetente, conteudo, autorId = null) {
   return mapMensagem(rows[0]);
 }
 
-// Sessão ativa do aluno. Se não houver, abre uma nova com a mensagem de boas-vindas.
-async function sessaoDoAluno(userId) {
+// Sessão ativa do aluno em um canal. Se não houver, abre uma nova com a mensagem de boas-vindas.
+async function sessaoDoAluno(userId, canal = 'atendimento') {
   let { rows } = await query(
-    `select * from atendimento_sessoes where user_id = $1 and status <> 'finalizado' limit 1`,
-    [userId]
+    `select * from atendimento_sessoes where user_id = $1 and canal = $2 and status <> 'finalizado' limit 1`,
+    [userId, canal]
   );
   if (!rows[0]) {
     const criada = await query(
-      `insert into atendimento_sessoes (user_id) values ($1)
-       on conflict (user_id) where status <> 'finalizado' do nothing
+      `insert into atendimento_sessoes (user_id, canal) values ($1, $2)
+       on conflict (user_id, canal) where status <> 'finalizado' do nothing
        returning id`,
-      [userId]
+      [userId, canal]
     );
     if (criada.rows[0]) {
       await inserirMensagem(criada.rows[0].id, 'sistema', BOAS_VINDAS);
     }
     ({ rows } = await query(
-      `select * from atendimento_sessoes where user_id = $1 and status <> 'finalizado' limit 1`,
-      [userId]
+      `select * from atendimento_sessoes where user_id = $1 and canal = $2 and status <> 'finalizado' limit 1`,
+      [userId, canal]
     ));
   }
   return rows[0];
@@ -190,13 +192,16 @@ async function enviarMensagemAluno(sessao, texto) {
     await transferirParaEquipe(sessao.id);
     return;
   }
-  const faq = encontrarFaq(texto, await faqAtivas());
+  const faq = encontrarFaq(texto, await faqAtivas(sessao.canal));
   await inserirMensagem(sessao.id, 'sistema', faq ? faq.resposta : MSG_SEM_RESPOSTA);
 }
 
 // Aluno escolhe um assunto pronto do menu. Só funciona enquanto o robô está respondendo.
 async function escolherAssunto(sessao, faqId) {
-  const { rows } = await query('select titulo, resposta from atendimento_faq where id = $1 and ativo = true', [faqId]);
+  const { rows } = await query(
+    'select titulo, resposta from atendimento_faq where id = $1 and ativo = true and canal = $2',
+    [faqId, sessao.canal]
+  );
   if (!rows[0]) return 'nao_encontrado';
   if (sessao.status !== 'bot') return 'com_equipe';
   await inserirMensagem(sessao.id, 'aluno', rows[0].titulo, sessao.user_id);
@@ -230,7 +235,7 @@ const FILTROS_STATUS = {
   todos: 's.arquivado_em is null'
 };
 
-async function listarSessoes(filtro) {
+async function listarSessoes(filtro, canal = 'atendimento') {
   const where = FILTROS_STATUS[filtro] || FILTROS_STATUS.abertos;
   const { rows } = await query(
     `select s.*, u.name as aluno_nome, u.email as aluno_email, a.name as atendente_nome,
@@ -238,9 +243,10 @@ async function listarSessoes(filtro) {
        from atendimento_sessoes s
        join users u on u.id = s.user_id
        left join users a on a.id = s.atendente_id
-      where ${where}
+      where (${where}) and s.canal = $1
       order by (s.status = 'aberto') desc, s.nao_lidas_gestao desc, s.ultima_mensagem_em desc
-      limit 200`
+      limit 200`,
+    [canal]
   );
   return rows.map(mapSessao);
 }
@@ -255,6 +261,40 @@ async function detalheSessao(sessaoId) {
     [sessaoId]
   );
   return rows[0] ? mapSessao(rows[0]) : null;
+}
+
+// Atendente encaminha a conversa técnica para a monitoria: a mesma conversa muda de canal e volta para a fila.
+async function encaminharParaMonitoria(sessao) {
+  if (sessao.status === 'finalizado') return 'finalizada';
+  if (sessao.canal === 'monitoria') return 'ja_monitoria';
+  const { rows } = await query(
+    `select 1 from atendimento_sessoes where user_id = $1 and canal = 'monitoria' and status <> 'finalizado' limit 1`,
+    [sessao.user_id]
+  );
+  if (rows[0]) return 'ja_existe';
+  await query(
+    `update atendimento_sessoes set canal = 'monitoria', status = 'aberto', atendente_id = null where id = $1`,
+    [sessao.id]
+  );
+  await inserirMensagem(
+    sessao.id,
+    'sistema',
+    'Sua conversa foi encaminhada para a monitoria, que responde sobre assuntos técnicos.'
+  );
+  return 'ok';
+}
+
+// Salas do Codice que a monitoria acompanha: aulas de código visíveis, com o endereço da sala.
+async function listarSalasCodice() {
+  const { rows } = await query(
+    `select l.id, l.title, l.url, c.title as curso, c.slug as curso_slug
+       from lessons l
+       join sections s on s.id = l.section_id
+       join courses c on c.id = s.course_id
+      where l.type = 'codice' and l.url <> '' and l.visible = true
+      order by c.title, l.title`
+  );
+  return rows.map((r) => ({ id: r.id, titulo: r.title, url: r.url, curso: r.curso, cursoSlug: r.curso_slug }));
 }
 
 async function responderComoEquipe(sessaoId, adminId, texto) {
@@ -406,6 +446,8 @@ module.exports = {
   detalheSessao,
   marcarLidaPelaGestao,
   responderComoEquipe,
+  encaminharParaMonitoria,
+  listarSalasCodice,
   finalizarSessao,
   arquivarSessao,
   listarFaq,

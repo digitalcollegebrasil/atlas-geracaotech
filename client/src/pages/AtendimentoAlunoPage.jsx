@@ -16,7 +16,13 @@ const STATUS_ALUNO = {
   aberto: { label: 'Aguardando a equipe', hint: 'Um atendente vai responder por aqui. Horário: seg. a sex., 9h às 17h.' }
 };
 
+const CANAIS_ALUNO = [
+  { value: 'atendimento', label: 'Atendimento', hint: 'Dúvidas sobre o programa, processo seletivo e formações.' },
+  { value: 'monitoria', label: 'Dúvidas técnicas', hint: 'Problemas com as aulas, o código ou a plataforma. Responde a monitoria.' }
+];
+
 export default function AtendimentoAlunoPage() {
+  const [canal, setCanal] = useState('atendimento');
   const [sessao, setSessao] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [topicos, setTopicos] = useState([]);
@@ -29,7 +35,7 @@ export default function AtendimentoAlunoPage() {
   const carregar = async ({ completo = false } = {}) => {
     try {
       const desde = completo ? 0 : ultimoId.current;
-      const { data } = await api.get('/atendimento/aluno/sessao', { params: { desde } });
+      const { data } = await api.get('/atendimento/aluno/sessao', { params: { desde, canal } });
       setSessao(data.sessao);
       setTopicos(data.topicos);
       if (data.mensagens.length) {
@@ -41,12 +47,16 @@ export default function AtendimentoAlunoPage() {
     }
   };
 
+  // Trocar de canal zera a conversa exibida e carrega a do outro canal.
   useEffect(() => {
+    ultimoId.current = 0;
+    setMensagens([]);
+    setSessao(null);
     carregar({ completo: true });
     const timer = setInterval(() => carregar(), INTERVALO_MS);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canal]);
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -59,7 +69,7 @@ export default function AtendimentoAlunoPage() {
     setEnviando(true);
     setFeedback(null);
     try {
-      await api.post('/atendimento/aluno/mensagens', { texto: conteudo });
+      await api.post('/atendimento/aluno/mensagens', { texto: conteudo, canal });
       setTexto('');
       await carregar();
     } catch (error) {
@@ -79,7 +89,7 @@ export default function AtendimentoAlunoPage() {
     setFeedback(null);
     try {
       const anexo = await lerArquivo(arquivo);
-      await api.post('/atendimento/aluno/anexo', anexo);
+      await api.post('/atendimento/aluno/anexo', { ...anexo, canal });
       await carregar();
     } catch (error) {
       setFeedback({ type: 'error', text: error.response ? errorText(error) : error.message });
@@ -91,7 +101,7 @@ export default function AtendimentoAlunoPage() {
   const escolherAssunto = async (topico) => {
     setFeedback(null);
     try {
-      await api.post('/atendimento/aluno/assunto', { faqId: topico.id });
+      await api.post('/atendimento/aluno/assunto', { faqId: topico.id, canal });
       await carregar();
     } catch (error) {
       setFeedback({ type: 'error', text: errorText(error) });
@@ -101,7 +111,7 @@ export default function AtendimentoAlunoPage() {
   const falarComEquipe = async () => {
     setFeedback(null);
     try {
-      await api.post('/atendimento/aluno/falar-com-equipe');
+      await api.post('/atendimento/aluno/falar-com-equipe', { canal });
       await carregar();
     } catch (error) {
       setFeedback({ type: 'error', text: errorText(error) });
@@ -123,7 +133,14 @@ export default function AtendimentoAlunoPage() {
           <div>
             <span className="eyebrow">Atendimento</span>
             <h1>Fale com o Geração Tech</h1>
-            <p>Tire dúvidas sobre o programa, o processo seletivo e as formações. Se precisar, a equipe responde por aqui.</p>
+            <p>{CANAIS_ALUNO.find((c) => c.value === canal).hint}</p>
+          </div>
+          <div className="atend-abas" role="tablist" aria-label="Escolha o assunto">
+            {CANAIS_ALUNO.map((c) => (
+              <button key={c.value} type="button" role="tab" aria-selected={canal === c.value} className={canal === c.value ? 'is-active' : ''} onClick={() => setCanal(c.value)}>
+                {c.label}
+              </button>
+            ))}
           </div>
         </section>
 
