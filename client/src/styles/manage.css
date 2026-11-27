@@ -1248,27 +1248,25 @@ textarea:disabled {
   padding: 16px;
   min-width: 0;
 }
-/* Tabela cabe na largura da página: colunas fixas, texto cortado com reticências, sem rolagem lateral. */
+/* Tabela cabe na largura da página sem rolagem lateral: layout automático, textos quebram linha e os botões nunca são cortados. */
 .users-table-wrap {
   overflow-x: hidden;
   width: 100%;
 }
 .users-table {
   width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
-.users-table .col-name { width: 30%; }
-.users-table .col-cpf { width: 13%; }
-.users-table .col-role { width: 15%; }
-.users-table .col-status { width: 15%; }
-.users-table .col-courses { width: 17%; }
-.users-table .col-groups { width: 9%; }
-.users-table .col-actions { width: 150px; }
 .users-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+}
+.users-table .col-actions .row-actions {
+  flex-wrap: nowrap;
+}
+.users-table .col-actions .small {
+  white-space: nowrap;
 }
 .users-table .users-status {
   white-space: normal;
@@ -1310,9 +1308,6 @@ textarea:disabled {
   font-style: normal;
   opacity: 0.6;
 }
-.users-table .col-actions {
-  white-space: nowrap;
-}
 .users-table .role-select {
   width: 100%;
   min-width: 0;
@@ -1328,6 +1323,17 @@ textarea:disabled {
 }
 .users-empty {
   padding: 16px 0;
+}
+/* Seletor de itens por página: tamanho do conteúdo, não a largura total do campo. */
+.users-pager .pager-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.users-pager .pager-size select {
+  width: auto;
+  min-width: 4.5rem;
 }
 .users-pager {
   display: flex;
