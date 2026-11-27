@@ -193,7 +193,6 @@ exports.encaminhar = async (req, res) => {
   const resultado = await atendimento.encaminharParaCanal(sessao, destino);
   if (resultado === 'finalizada') throw httpError(409, 'Este atendimento já foi finalizado.');
   if (resultado === 'ja_no_destino') throw httpError(409, 'Esta conversa já está nesse canal.');
-  if (resultado === 'ja_existe') throw httpError(409, `O aluno já tem uma conversa aberta em ${destino === 'monitoria' ? 'monitoria' : 'atendimento'}.`);
   return res.json({ status: destino });
 };
 

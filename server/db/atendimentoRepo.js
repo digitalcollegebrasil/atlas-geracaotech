@@ -1,4 +1,4 @@
-const { query } = require('./pool');
+const { query, withTransaction } = require('./pool');
 
 // Atendimento: sessão do aluno, mensagens, robô de perguntas frequentes e atendimento pela gestão.
 
@@ -263,24 +263,73 @@ async function detalheSessao(sessaoId) {
   return rows[0] ? mapSessao(rows[0]) : null;
 }
 
-// Encaminha a conversa para o outro canal (atendimento <-> monitoria). A conversa sai do canal de origem,
-// volta para a fila do destino e o aluno recebe o aviso no chat.
-const NOME_CANAL = { monitoria: 'a monitoria, que responde sobre assuntos técnicos', atendimento: 'o atendimento da equipe' };
+// Encaminha a conversa para o outro canal. O histórico vai junto para a conversa do destino (reaproveita a aberta,
+// se o aluno já tiver uma), o aluno recebe o aviso e a conversa de origem fica arquivada para quem encaminhou.
+const NOME_ORIGEM = { atendimento: 'o atendimento', monitoria: 'a monitoria' };
+const AVISO_ALUNO = {
+  monitoria: 'Sua conversa foi encaminhada para a monitoria, que responde sobre assuntos técnicos.',
+  atendimento: 'Sua conversa foi encaminhada para o atendimento da equipe.'
+};
 
 async function encaminharParaCanal(sessao, destino) {
   if (sessao.status === 'finalizado') return 'finalizada';
   if (sessao.canal === destino) return 'ja_no_destino';
-  const { rows } = await query(
-    `select 1 from atendimento_sessoes where user_id = $1 and canal = $2 and status <> 'finalizado' limit 1`,
-    [sessao.userId, destino]
-  );
-  if (rows[0]) return 'ja_existe';
-  await query(
-    `update atendimento_sessoes set canal = $2, status = 'aberto', atendente_id = null where id = $1`,
-    [sessao.id, destino]
-  );
-  await inserirMensagem(sessao.id, 'sistema', `Sua conversa foi encaminhada para ${NOME_CANAL[destino]}.`);
-  return 'ok';
+  const origem = sessao.canal;
+
+  return withTransaction(async (client) => {
+    const { rows: abertas } = await client.query(
+      `select id from atendimento_sessoes where user_id = $1 and canal = $2 and status <> 'finalizado' limit 1`,
+      [sessao.userId, destino]
+    );
+    let destinoId = abertas[0]?.id;
+    if (destinoId) {
+      await client.query(`update atendimento_sessoes set status = 'aberto', atendente_id = null where id = $1`, [destinoId]);
+    } else {
+      const { rows } = await client.query(
+        `insert into atendimento_sessoes (user_id, canal, status) values ($1, $2, 'aberto') returning id`,
+        [sessao.userId, destino]
+      );
+      destinoId = rows[0].id;
+    }
+
+    await client.query(
+      `insert into atendimento_mensagens (sessao_id, remetente, conteudo) values ($1, 'sistema', $2)`,
+      [destinoId, `Conversa encaminhada de ${NOME_ORIGEM[origem]} para ${NOME_ORIGEM[destino]}. Histórico abaixo.`]
+    );
+
+    // Copia todas as mensagens da origem (texto e anexos), na mesma ordem.
+    const { rows: colunasRows } = await client.query(
+      `select column_name from information_schema.columns
+        where table_schema = current_schema() and table_name = 'atendimento_mensagens'
+          and column_name not in ('id', 'sessao_id') order by ordinal_position`
+    );
+    const colunas = colunasRows.map((c) => c.column_name).join(', ');
+    await client.query(
+      `insert into atendimento_mensagens (sessao_id, ${colunas})
+       select $1, ${colunas} from atendimento_mensagens where sessao_id = $2 order by id`,
+      [destinoId, sessao.id]
+    );
+
+    await client.query(
+      `insert into atendimento_mensagens (sessao_id, remetente, conteudo) values ($1, 'sistema', $2)`,
+      [destinoId, AVISO_ALUNO[destino]]
+    );
+    await client.query(
+      `update atendimento_sessoes set nao_lidas_gestao = nao_lidas_gestao + 1, ultima_mensagem_em = now() where id = $1`,
+      [destinoId]
+    );
+
+    // Origem: registra o encaminhamento e arquiva, para quem encaminhou.
+    await client.query(
+      `insert into atendimento_mensagens (sessao_id, remetente, conteudo) values ($1, 'sistema', $2)`,
+      [sessao.id, `Conversa encaminhada para ${NOME_ORIGEM[destino]}.`]
+    );
+    await client.query(
+      `update atendimento_sessoes set status = 'finalizado', finalizado_em = now(), arquivado_em = now(), ultima_mensagem_em = now() where id = $1`,
+      [sessao.id]
+    );
+    return 'ok';
+  });
 }
 
 async function responderComoEquipe(sessaoId, adminId, texto) {
