@@ -54,7 +54,8 @@ const adminItems = [
   { to: '/gestao/ponto', label: 'Ponto dos professores', icon: 'clock' },
   { to: '/gestao/acessos', label: 'Acessos', icon: 'key' },
   { to: '/gestao/usuarios', label: 'Usuários', icon: 'shield' },
-  { to: '/gestao/ia', label: 'Inteligência artificial', icon: 'bulb' }
+  { to: '/gestao/ia', label: 'Inteligência artificial', icon: 'bulb' },
+  { to: '/gestao/gt5', label: 'Geração Tech 5.0', icon: 'calendar' }
 ];
 
 export default function Sidebar() {

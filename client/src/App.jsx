@@ -9,6 +9,7 @@ import ReportsPage from './pages/ReportsPage';
 import AttendancePage from './pages/AttendancePage';
 import { AccessLogPage } from './pages/ManagementExtrasPage';
 import IaAdminPage from './pages/IaAdminPage';
+import Gt5GestaoPage from './pages/Gt5GestaoPage';
 import VerifyCertificatePage from './pages/VerifyCertificatePage';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -272,6 +273,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={['admin']}>
               <IaAdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gestao/gt5"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <Gt5GestaoPage />
             </ProtectedRoute>
           }
         />

@@ -2,7 +2,7 @@
 // As regras vêm de docs/GT5-DIRETRIZES.md, seções 2 e 3. Inscrição e matrícula vêm do site do GT.
 // Funções puras ficam separadas do banco para teste.
 const httpError = require('../utils/httpError');
-const { text, phone, uf } = require('./validators');
+const { text, phone, uf, isoDate } = require('./validators');
 const { setTurmaDoAluno } = require('./turmaSync');
 
 const MODALIDADES = ['Online', 'Presencial'];
@@ -71,18 +71,83 @@ function localDe(modalidade, poloId) {
   return poloId ? 'interior' : 'fortaleza';
 }
 
-// Matrículas ativas por local de uma formação. excluirMatriculaId tira o próprio aluno da conta.
-async function ocupacaoPorLocal(client, cursoId, excluirMatriculaId = null) {
+// Quais situações de matrícula ocupam vaga. Por padrão, só as ativas; a gestão pode incluir as concluídas.
+function situacoesPorConfiguracao(concluidasOcupam) {
+  return concluidasOcupam ? ['ativo', 'concluido'] : ['ativo'];
+}
+
+async function situacoesQueOcupam(client) {
+  const { rows } = await client.query("select valor from gt5_configuracao where chave = 'matriculas_concluidas_ocupam_vaga'");
+  return situacoesPorConfiguracao(Boolean(rows[0]?.valor));
+}
+
+// Matrículas que ocupam vaga, por local de uma formação. excluirMatriculaId tira o próprio aluno da conta.
+async function ocupacaoPorLocal(client, cursoId, excluirMatriculaId = null, situacoes = ['ativo']) {
   const { rows } = await client.query(
     `select
        count(*) filter (where modalidade = 'Online') as online,
        count(*) filter (where modalidade = 'Presencial' and sede_id is null) as fortaleza,
        count(*) filter (where modalidade = 'Presencial' and sede_id is not null) as interior
      from matriculas
-     where curso_id = $1 and situacao = 'ativo' and ($2::uuid is null or id <> $2::uuid)`,
-    [cursoId, excluirMatriculaId]
+     where curso_id = $1 and situacao = any($3::text[]) and ($2::uuid is null or id <> $2::uuid)`,
+    [cursoId, excluirMatriculaId, situacoes]
   );
   return { online: Number(rows[0].online), fortaleza: Number(rows[0].fortaleza), interior: Number(rows[0].interior) };
+}
+
+// Fortaleza é provisória enquanto não houver sede cadastrada na cidade. Presencial sem polo cai nela.
+async function fortalezaProvisoria(client) {
+  const { rows } = await client.query(
+    `select 1 from sedes where tipo = 'sede' and ativa and (lower(nome) = 'fortaleza' or lower(cidade) = 'fortaleza') limit 1`
+  );
+  return !rows[0];
+}
+
+// Dados da turma editáveis depois de criada. Curso, modalidade e polo não mudam: só pela planilha ou pela integração.
+function parseEdicaoTurma(body) {
+  if (!body || typeof body !== 'object') throw httpError(400, 'Dados da turma inválidos.');
+  const out = {};
+  if (body.nome !== undefined) out.nome = text(body.nome, { field: 'Nome da turma', max: 160 });
+  if (body.turno !== undefined) out.turno = text(body.turno, { field: 'Turno', max: 40, optional: true }) || '';
+  if (body.dias_semana !== undefined) out.dias_semana = text(body.dias_semana, { field: 'Dias da semana', max: 60, optional: true }) || '';
+  if (body.horario !== undefined) out.horario = text(body.horario, { field: 'Horário', max: 60, optional: true }) || '';
+  if (body.data_inicio !== undefined) out.data_inicio = isoDate(body.data_inicio);
+  if (body.data_fim !== undefined) out.data_fim = isoDate(body.data_fim);
+  if (body.ativa !== undefined) out.ativa = Boolean(body.ativa);
+  return out;
+}
+
+// Início não pode ser depois do término (vale para o valor final, mesmo que só um dos dois tenha mudado).
+function validarPeriodo(inicio, fim) {
+  if (inicio && fim && inicio > fim) throw httpError(400, 'A data de término é anterior à data de início.');
+}
+
+// Quantos registros ligam a turma a alunos, equipe, professores, mural ou presença.
+// Com qualquer um, a turma não pode ser excluída (o banco apagaria esses registros em cascata).
+async function vinculosDaTurma(client, turmaId) {
+  const { rows } = await client.query(
+    `select
+       (select count(*) from turma_alunos where turma_id = $1)
+     + (select count(*) from turma_equipe where turma_id = $1)
+     + (select count(*) from turma_professores where turma_id = $1)
+     + (select count(*) from turma_posts where turma_id = $1)
+     + (select count(*) from attendance_sessions where turma_id = $1) as total`,
+    [turmaId]
+  );
+  return Number(rows[0].total);
+}
+
+// Quantos registros usam o polo: matrículas, turmas, lideranças e vagas.
+async function vinculosDoPolo(client, poloId) {
+  const { rows } = await client.query(
+    `select
+       (select count(*) from matriculas where sede_id = $1)
+     + (select count(*) from turmas where sede_id = $1)
+     + (select count(*) from liderancas_territoriais where polo_id = $1)
+     + (select count(*) from vagas where sede_id = $1) as total`,
+    [poloId]
+  );
+  return Number(rows[0].total);
 }
 
 function parsePolo(body, { parcial = false } = {}) {
@@ -172,7 +237,7 @@ async function vincularAluno(client, matriculaId, vinculo) {
   const destino = localDe(vinculo.modalidade, poloId);
   const atual = localDe(matricula.modalidade, matricula.sede_id);
   if (destino !== atual) {
-    const ocupadas = await ocupacaoPorLocal(client, vinculo.formacaoId, matriculaId);
+    const ocupadas = await ocupacaoPorLocal(client, vinculo.formacaoId, matriculaId, await situacoesQueOcupam(client));
     const total = { online: formacao.vagas_online, fortaleza: formacao.vagas_fortaleza, interior: formacao.vagas_interior }[destino];
     if (ocupadas[destino] >= total) throw httpError(409, 'Não há vagas disponíveis neste local.');
   }
@@ -192,5 +257,7 @@ async function vincularAluno(client, matriculaId, vinculo) {
 
 module.exports = {
   LOCAIS, uuid, uuidOpcional, parseFormacao, validarVagas, montarVagas, localDe, ocupacaoPorLocal,
+  situacoesPorConfiguracao, situacoesQueOcupam, fortalezaProvisoria, parseEdicaoTurma, validarPeriodo,
+  vinculosDaTurma, vinculosDoPolo,
   parsePolo, parseLideranca, parseVinculo, validarLocal, validarTurma, vincularAluno,
 };
