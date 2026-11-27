@@ -57,33 +57,34 @@
   color: var(--text-soft);
 }
 
+/* Filtros em faixa acima da tabela: a tabela usa a largura toda da página, com o menu aberto ou fechado. */
 .acompanhamento-corpo {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.1rem;
   align-items: start;
+  min-width: 0;
 }
 
 .acompanhamento-filtros {
-  position: sticky;
-  top: calc(var(--nav-h) + 1rem);
   display: grid;
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.9rem 1.25rem;
+  align-items: start;
   padding: 1rem;
   border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--border);
-  max-height: calc(100vh - var(--nav-h) - 2rem);
-  overflow-y: auto;
+  min-width: 0;
+}
+.acompanhamento-filtros > .acompanhamento-limpar {
+  grid-column: 1 / -1;
 }
 .acompanhamento-bloco {
   display: grid;
   gap: 0.6rem;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--border);
-}
-.acompanhamento-bloco:last-of-type {
-  border-bottom: 0;
+  align-content: start;
+  min-width: 0;
 }
 .acompanhamento-bloco h2 {
   margin: 0;
@@ -124,6 +125,23 @@
 .acompanhamento-atalhos {
   display: grid;
   gap: 0.4rem;
+}
+/* Tabela: cabeçalhos e textos quebram linha em vez de cortar; números e datas continuam em uma linha. */
+.users-table.acompanhamento-table th,
+.users-table.acompanhamento-table td {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: normal;
+}
+.users-table.acompanhamento-table .nowrap {
+  white-space: nowrap;
+}
+.acompanhamento-table .cell-name span,
+.acompanhamento-table .cell-name strong,
+.acompanhamento-table .cell-name div {
+  white-space: normal;
+  overflow: visible;
 }
 .acompanhamento-atalhos button {
   display: grid;
@@ -214,5 +232,14 @@
 @media (max-width: 640px) {
   .acompanhamento-resumo {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .acompanhamento-resumo {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .acompanhamento-resumo > div:nth-child(3) {
+    border-right: 0;
   }
 }
