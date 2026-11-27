@@ -284,19 +284,6 @@ async function encaminharParaMonitoria(sessao) {
   return 'ok';
 }
 
-// Salas do Codice que a monitoria acompanha: aulas de código visíveis, com o endereço da sala.
-async function listarSalasCodice() {
-  const { rows } = await query(
-    `select l.id, l.title, l.url, c.title as curso, c.slug as curso_slug
-       from lessons l
-       join sections s on s.id = l.section_id
-       join courses c on c.id = s.course_id
-      where l.type = 'codice' and l.url <> '' and l.visible = true
-      order by c.title, l.title`
-  );
-  return rows.map((r) => ({ id: r.id, titulo: r.title, url: r.url, curso: r.curso, cursoSlug: r.curso_slug }));
-}
-
 async function responderComoEquipe(sessaoId, adminId, texto) {
   const { rows } = await query('select status from atendimento_sessoes where id = $1', [sessaoId]);
   if (!rows[0]) return 'nao_encontrada';
@@ -447,7 +434,6 @@ module.exports = {
   marcarLidaPelaGestao,
   responderComoEquipe,
   encaminharParaMonitoria,
-  listarSalasCodice,
   finalizarSessao,
   arquivarSessao,
   listarFaq,

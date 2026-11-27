@@ -55,10 +55,11 @@ export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
     try {
       const [fila, numeros] = await Promise.all([
         api.get('/atendimento/gestao/sessoes', { params: { filtro, canal } }),
-        api.get('/atendimento/gestao/resumo')
+        // Os números gerais são da equipe de atendimento; o monitor vê só a fila dele.
+        isMonitor ? null : api.get('/atendimento/gestao/resumo')
       ]);
       setSessoes(fila.data.sessoes);
-      setResumo(numeros.data.resumo);
+      if (numeros) setResumo(numeros.data.resumo);
     } catch (error) {
       setFeedback({ type: 'error', text: errorText(error) });
     }

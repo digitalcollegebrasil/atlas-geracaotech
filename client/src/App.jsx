@@ -35,7 +35,7 @@ import CronogramasPage from './pages/CronogramasPage';
 import JustificativasPage from './pages/JustificativasPage';
 import RelatoriosGestaoPage from './pages/RelatoriosGestaoPage';
 import AtendimentoAlunoPage from './pages/AtendimentoAlunoPage';
-import MonitoriaCodicePage from './pages/MonitoriaCodicePage';
+import ManualPage from './pages/ManualPage';
 import AtendimentoGestaoPage from './pages/AtendimentoGestaoPage';
 
 const TEACHING_ROLES = ['admin', 'teacher'];
@@ -56,6 +56,17 @@ function AtendimentoRota() {
 // Monitoria: conversas técnicas. Monitor e administração; o atendente encaminha pelo atendimento.
 function MonitoriaRota() {
   return <AtendimentoGestaoPage canal="monitoria" />;
+}
+
+// Monitor não usa o painel de aluno: a entrada dele é a monitoria.
+function DashboardRota() {
+  const { isMonitor } = useAuth();
+  return isMonitor ? <Navigate to="/monitoria" replace /> : <DashboardPage />;
+}
+
+function CursosRota() {
+  const { isMonitor } = useAuth();
+  return isMonitor ? <Navigate to="/monitoria" replace /> : <CoursesPage />;
 }
 
 export default function App() {
@@ -80,7 +91,7 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <DashboardRota />
             </ProtectedRoute>
           }
         />
@@ -88,7 +99,7 @@ export default function App() {
           path="/cursos"
           element={
             <ProtectedRoute>
-              <CoursesPage />
+              <CursosRota />
             </ProtectedRoute>
           }
         />
@@ -127,7 +138,7 @@ export default function App() {
         <Route
           path="/editor"
           element={
-            <ProtectedRoute roles={['student']}>
+            <ProtectedRoute roles={['student', 'monitor']}>
               <EditorPage />
             </ProtectedRoute>
           }
@@ -251,10 +262,10 @@ export default function App() {
           }
         />
         <Route
-          path="/monitoria/codice"
+          path="/manual"
           element={
             <ProtectedRoute roles={['monitor', 'admin']}>
-              <MonitoriaCodicePage />
+              <ManualPage />
             </ProtectedRoute>
           }
         />
