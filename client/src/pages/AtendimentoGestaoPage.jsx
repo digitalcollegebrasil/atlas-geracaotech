@@ -167,12 +167,14 @@ export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
     }
   };
 
-  // Dúvida técnica no atendimento: a conversa passa para a fila da monitoria.
-  const encaminharMonitoria = async () => {
-    if (!selecionada || !window.confirm(`Encaminhar a conversa de ${selecionada.aluno?.nome} para a monitoria?`)) return;
+  // Encaminha para o outro canal: atendente → monitoria; monitor → atendimento.
+  const destinoEncaminhar = isMonitor ? 'atendimento' : 'monitoria';
+  const encaminhar = async () => {
+    const nomeDestino = destinoEncaminhar === 'monitoria' ? 'monitoria' : 'atendimento';
+    if (!selecionada || !window.confirm(`Encaminhar a conversa de ${selecionada.aluno?.nome} para ${nomeDestino}? Ela sai desta fila.`)) return;
     try {
-      await api.post(`/atendimento/gestao/sessoes/${selecionada.id}/encaminhar-monitoria`);
-      setFeedback({ type: 'success', text: 'Conversa encaminhada para a monitoria.' });
+      await api.post(`/atendimento/gestao/sessoes/${selecionada.id}/encaminhar`);
+      setFeedback({ type: 'success', text: `Conversa encaminhada para ${nomeDestino}.` });
       setSelecionada(null);
       carregarFila();
     } catch (error) {
@@ -273,8 +275,10 @@ export default function AtendimentoGestaoPage({ canal = 'atendimento' }) {
                     </div>
                     <div className="atend-conversa-acoes">
                       <span className={`atend-status atend-status-${selecionada.status}`}>{STATUS_TEXT[selecionada.status]}</span>
-                      {!finalizado && isAtendente && canal === 'atendimento' && (
-                        <button type="button" className="ghost-button small" onClick={encaminharMonitoria}>Encaminhar para monitoria</button>
+                      {!finalizado && ((isAtendente && canal === 'atendimento') || (isMonitor && canal === 'monitoria')) && (
+                        <button type="button" className="ghost-button small" onClick={encaminhar}>
+                          {destinoEncaminhar === 'monitoria' ? 'Encaminhar para monitoria' : 'Encaminhar para atendimento'}
+                        </button>
                       )}
                       {!finalizado && podeResponder && (
                         <button type="button" className="ghost-button small" onClick={finalizar}>Finalizar atendimento</button>

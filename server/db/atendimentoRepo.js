@@ -263,24 +263,23 @@ async function detalheSessao(sessaoId) {
   return rows[0] ? mapSessao(rows[0]) : null;
 }
 
-// Atendente encaminha a conversa técnica para a monitoria: a mesma conversa muda de canal e volta para a fila.
-async function encaminharParaMonitoria(sessao) {
+// Encaminha a conversa para o outro canal (atendimento <-> monitoria). A conversa sai do canal de origem,
+// volta para a fila do destino e o aluno recebe o aviso no chat.
+const NOME_CANAL = { monitoria: 'a monitoria, que responde sobre assuntos técnicos', atendimento: 'o atendimento da equipe' };
+
+async function encaminharParaCanal(sessao, destino) {
   if (sessao.status === 'finalizado') return 'finalizada';
-  if (sessao.canal === 'monitoria') return 'ja_monitoria';
+  if (sessao.canal === destino) return 'ja_no_destino';
   const { rows } = await query(
-    `select 1 from atendimento_sessoes where user_id = $1 and canal = 'monitoria' and status <> 'finalizado' limit 1`,
-    [sessao.user_id]
+    `select 1 from atendimento_sessoes where user_id = $1 and canal = $2 and status <> 'finalizado' limit 1`,
+    [sessao.userId, destino]
   );
   if (rows[0]) return 'ja_existe';
   await query(
-    `update atendimento_sessoes set canal = 'monitoria', status = 'aberto', atendente_id = null where id = $1`,
-    [sessao.id]
+    `update atendimento_sessoes set canal = $2, status = 'aberto', atendente_id = null where id = $1`,
+    [sessao.id, destino]
   );
-  await inserirMensagem(
-    sessao.id,
-    'sistema',
-    'Sua conversa foi encaminhada para a monitoria, que responde sobre assuntos técnicos.'
-  );
+  await inserirMensagem(sessao.id, 'sistema', `Sua conversa foi encaminhada para ${NOME_CANAL[destino]}.`);
   return 'ok';
 }
 
@@ -433,7 +432,7 @@ module.exports = {
   detalheSessao,
   marcarLidaPelaGestao,
   responderComoEquipe,
-  encaminharParaMonitoria,
+  encaminharParaCanal,
   finalizarSessao,
   arquivarSessao,
   listarFaq,
