@@ -78,9 +78,13 @@
 .tutor-ia-texto strong { font-size: 1.15rem; color: var(--tutor-destaque, var(--primary)); }
 .tutor-ia-texto small { color: var(--text-muted); }
 .tutor-ia-chamada {
-  background: var(--tutor-destaque, var(--primary)); color: var(--primary-ink); border-radius: 999px;
-  padding: 0.55rem 1rem; font-weight: 600; white-space: nowrap;
+  background: var(--tutor-destaque, var(--primary)); color: var(--primary-ink);
+  border-radius: var(--radius-sm); padding: 0.8rem 1.35rem; font-size: 0.95rem; font-weight: 600;
+  line-height: 1.2; white-space: nowrap; box-shadow: 3px 3px 0 var(--highlight);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
+.tutor-ia-convite:hover .tutor-ia-chamada { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--highlight); }
+.tutor-ia-convite:active .tutor-ia-chamada { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--highlight); }
 
 /* Painel aberto: cabeçalho, conversa em balões */
 .tutor-ia.is-open {
