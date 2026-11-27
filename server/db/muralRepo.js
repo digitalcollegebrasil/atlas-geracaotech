@@ -166,9 +166,11 @@ async function atualizarPost(id, campos) {
         set fixado = coalesce($2, fixado),
             resolvido = coalesce($3, resolvido),
             ocultado = coalesce($4, ocultado),
+            titulo = coalesce($5, titulo),
+            corpo = coalesce($6, corpo),
             updated_at = now()
       where id = $1`,
-    [id, campos.fixado ?? null, campos.resolvido ?? null, campos.ocultado ?? null]
+    [id, campos.fixado ?? null, campos.resolvido ?? null, campos.ocultado ?? null, campos.titulo ?? null, campos.corpo ?? null]
   );
 }
 
