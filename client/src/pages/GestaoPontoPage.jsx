@@ -383,7 +383,7 @@ export default function GestaoPontoPage() {
                   <th className="col-marcar">
                     <input type="checkbox" className="ponto-marcar" aria-label="Selecionar todos" checked={todosMarcados} onChange={alternarTodos} disabled={!registros.length} />
                   </th>
-                  <th>Professor</th><th>Data</th><th>Tipo</th><th>Turma / título</th><th>Entrada</th><th>Saída</th><th>Duração</th><th>Observação</th><th />
+                  <th>Professor</th><th>Data</th><th>Tipo</th><th>Turma / título</th><th>Horário</th><th>Duração</th><th>Observação</th><th />
                 </tr>
               </thead>
               <tbody>
@@ -396,8 +396,9 @@ export default function GestaoPontoPage() {
                     <td className="nowrap">{dataBr(r.data)}</td>
                     <td className="nowrap">{r.tipo === 'extra' ? 'Extra' : 'Aula'}</td>
                     <td>{r.tipo === 'extra' ? `${r.titulo || 'Aula extra'}${r.turma ? ` · ${r.turma}` : ''}` : r.turma || '—'}</td>
-                    <td className="nowrap">{hora(r.entrada)}</td>
-                    <td className="nowrap">{r.saida ? hora(r.saida) : <span className="docente-aberto">aberto</span>}</td>
+                    <td className="nowrap">
+                      {hora(r.entrada)} – {r.saida ? hora(r.saida) : <span className="docente-aberto">aberto</span>}
+                    </td>
                     <td className="nowrap">{r.minutos !== null ? formatarMinutos(r.minutos) : '—'}</td>
                     <td>
                       {r.observacao || '—'}
@@ -409,7 +410,7 @@ export default function GestaoPontoPage() {
                   </tr>
                 ))}
                 {!loading && registros.length === 0 && (
-                  <tr><td colSpan={10} className="users-empty">Nenhum registro de ponto neste período.</td></tr>
+                  <tr><td colSpan={9} className="users-empty">Nenhum registro de ponto neste período.</td></tr>
                 )}
               </tbody>
             </table>

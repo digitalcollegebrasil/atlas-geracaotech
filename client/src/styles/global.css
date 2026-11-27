@@ -351,6 +351,7 @@ input[type='radio'] {
 .dashboard-content {
   display: grid;
   gap: 1.75rem;
+  min-width: 0;
 }
 
 .hero,
@@ -527,6 +528,7 @@ input[type='radio'] {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  white-space: nowrap;
   padding: 0.8rem 1.35rem;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
@@ -729,7 +731,7 @@ input[type='radio'] {
    12. DASHBOARD
    --------------------------------------------------------------------- */
 .dashboard-layout {
-  grid-template-columns: 248px 1fr;
+  grid-template-columns: 248px minmax(0, 1fr);
   align-items: start;
   gap: 2rem;
 }
