@@ -148,3 +148,10 @@ exports.tutor = async (req, res) => {
     throw erro;
   }
 };
+
+// Aparência do tutor: leitura para qualquer usuário logado; gravação só pela administração.
+const aparenciaTutor = require('../services/iaAparencia');
+
+exports.obterAparenciaTutor = async (req, res) => res.json(await aparenciaTutor.buscarAparenciaTutor());
+
+exports.salvarAparenciaTutor = async (req, res) => res.json(await aparenciaTutor.salvarAparenciaTutor(req.body || {}, req.user.id));
