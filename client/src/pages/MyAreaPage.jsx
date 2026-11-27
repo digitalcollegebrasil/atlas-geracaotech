@@ -1,3 +1,4 @@
+import SenhaInput from '../components/SenhaInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -518,11 +519,11 @@ function Security({ changePassword }) {
         <form className="myarea-form" onSubmit={save}>
           <label>
             Senha atual
-            <input type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+            <SenhaInput autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
           </label>
           <label>
             Nova senha
-            <input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <SenhaInput autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           </label>
           <ul className="password-checklist">
             {rules.map((rule) => (
@@ -533,7 +534,7 @@ function Security({ changePassword }) {
           </ul>
           <label>
             Confirme a nova senha
-            <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <SenhaInput autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </label>
           {message && <p className="myarea-msg">{message}</p>}
           {error && <p className="myarea-msg is-error">{error}</p>}

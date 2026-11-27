@@ -1,3 +1,4 @@
+import SenhaInput from '../components/SenhaInput';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -52,8 +53,7 @@ export default function ChangePasswordPage() {
 
           <label className="login-field">
             <span>{mustChangePassword ? 'Senha atual (seu CPF)' : 'Senha atual'}</span>
-            <input
-              type="password"
+            <SenhaInput
               autoComplete="current-password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
@@ -63,8 +63,7 @@ export default function ChangePasswordPage() {
 
           <label className="login-field">
             <span>Nova senha</span>
-            <input
-              type="password"
+            <SenhaInput
               autoComplete="new-password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
@@ -85,8 +84,7 @@ export default function ChangePasswordPage() {
 
           <label className="login-field">
             <span>Confirme a nova senha</span>
-            <input
-              type="password"
+            <SenhaInput
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
