@@ -30,6 +30,7 @@ const monitorItems = [
 ];
 const atendenteItems = [
   { to: '/gestao/atendimento', label: 'Atendimento', icon: 'chat' },
+  { to: '/manual', label: 'Manual', icon: 'bulb' },
   { to: '/mural', label: 'Mural', icon: 'bell' },
   { to: '/minha-area', label: 'Meu perfil', icon: 'user' }
 ];

@@ -5,7 +5,7 @@ import { Feedback, errorText } from '../manage/shared';
 // Perguntas que o robô responde. Só a administração edita. Uma pergunta inativa não aparece para o aluno.
 const VAZIO = { id: null, titulo: '', palavras: '', resposta: '', ordem: 0, ativo: true, revisado: false };
 
-export default function FaqManager() {
+export default function FaqManager({ canal = 'atendimento' }) {
   const [itens, setItens] = useState([]);
   const [form, setForm] = useState(null);
   const [salvando, setSalvando] = useState(false);
@@ -13,7 +13,7 @@ export default function FaqManager() {
 
   const carregar = async () => {
     try {
-      const { data } = await api.get('/atendimento/gestao/faq');
+      const { data } = await api.get('/atendimento/gestao/faq', { params: { canal } });
       setItens(data.faq);
     } catch (error) {
       setFeedback({ type: 'error', text: errorText(error) });
@@ -22,13 +22,13 @@ export default function FaqManager() {
 
   useEffect(() => {
     carregar();
-  }, []);
+  }, [canal]);
 
   const salvar = async (event) => {
     event.preventDefault();
     setSalvando(true);
     setFeedback(null);
-    const corpo = { ...form };
+    const corpo = { ...form, canal };
     try {
       if (form.id) await api.patch(`/atendimento/gestao/faq/${form.id}`, corpo);
       else await api.post('/atendimento/gestao/faq', corpo);
