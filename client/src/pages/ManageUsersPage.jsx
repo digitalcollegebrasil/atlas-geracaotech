@@ -18,6 +18,7 @@ const ROLE_TABS = [
   ['teacher', 'Professores'],
   ['editor', 'Editores'],
   ['atendente', 'Atendentes'],
+  ['monitor', 'Monitores'],
   ['gestao', 'Gestão'],
   ['admin', 'Administradores'],
   ['', 'Todos'],

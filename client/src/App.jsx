@@ -199,7 +199,7 @@ export default function App() {
         <Route
           path="/ponto"
           element={
-            <ProtectedRoute roles={TEACHING_ROLES}>
+            <ProtectedRoute roles={[...TEACHING_ROLES, 'monitor']}>
               <ProfessorPontoPage />
             </ProtectedRoute>
           }

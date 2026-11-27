@@ -9,6 +9,11 @@ const FUSO = 'America/Sao_Paulo';
 const NOVO = { id: null, professorId: '', data: '', tipo: 'aula', turmaId: '', titulo: '', entrada: '', saida: '', observacao: '' };
 const LOTE_VAZIO = { turmaId: '', tipo: '', observacao: '' };
 
+// Professor ou monitor: a gestão distingue os dois na lista de ponto.
+function rotuloResponsavel(p) {
+  return p.papel === 'monitor' ? `${p.name} (monitor)` : p.name;
+}
+
 // Horário HH:MM de Brasília, para preencher o formulário de edição.
 function horaSP(iso) {
   if (!iso) return '';
@@ -244,7 +249,7 @@ export default function GestaoPontoPage() {
                 <select value={professorId} onChange={(e) => setProfessorId(e.target.value)}>
                   <option value="">Todos</option>
                   {professores.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>{rotuloResponsavel(p)}</option>
                   ))}
                 </select>
               </label>
@@ -292,7 +297,7 @@ export default function GestaoPontoPage() {
                 <select value={formulario.professorId} disabled={editando} onChange={(e) => setFormulario({ ...formulario, professorId: e.target.value })} required>
                   <option value="">Escolha</option>
                   {professores.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>{rotuloResponsavel(p)}</option>
                   ))}
                 </select>
               </label>

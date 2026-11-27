@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
-import { isAtendente, isEditor, isGestao, isTeacherOrAdmin } from '../utils/roles';
+import { isAtendente, isEditor, isGestao, isMonitor, isTeacherOrAdmin } from '../utils/roles';
 
 const AuthContext = createContext();
 
@@ -101,6 +101,7 @@ export function AuthProvider({ children }) {
       isTeacher: isTeacherOrAdmin(role),
       isAtendente: isAtendente(role),
       isGestao: isGestao(role),
+      isMonitor: isMonitor(role),
       isEditor: isEditor(role),
       hasRole: (...roles) => roles.includes(role),
       isAuthenticated: Boolean(token && user),
